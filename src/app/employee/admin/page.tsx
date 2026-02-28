@@ -25,26 +25,28 @@ function formatHours(minutes: number) {
 
 function getRangeDates(range: Range): { from: string; to: string } {
   const now = new Date()
-  const to = now.toISOString()
 
   if (range === 'week') {
-    const from = new Date(now)
-    const day = now.getDay()
+    const day = now.getDay() // 0=Sun, 1=Mon … 6=Sat
     const diffToMon = day === 0 ? -6 : 1 - day
+    const from = new Date(now)
     from.setDate(now.getDate() + diffToMon)
     from.setHours(0, 0, 0, 0)
-    return { from: from.toISOString(), to }
+    const to = new Date(from)
+    to.setDate(from.getDate() + 6) // Sunday
+    to.setHours(23, 59, 59, 999)
+    return { from: from.toISOString(), to: to.toISOString() }
   }
 
   if (range === 'month') {
     const from = new Date(now.getFullYear(), now.getMonth(), 1)
-    return { from: from.toISOString(), to }
+    return { from: from.toISOString(), to: now.toISOString() }
   }
 
   // all: past 365 days
   const from = new Date(now)
   from.setFullYear(from.getFullYear() - 1)
-  return { from: from.toISOString(), to }
+  return { from: from.toISOString(), to: now.toISOString() }
 }
 
 export default function AdminPage() {
