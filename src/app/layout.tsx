@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Cormorant_Garamond, Manrope } from 'next/font/google'
 import Script from 'next/script'
-import { Header } from '@/components/layout/Header'
-import { Footer } from '@/components/layout/Footer'
 import './globals.css'
 
 const cormorant = Cormorant_Garamond({
@@ -95,9 +93,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="bg-charcoal text-offwhite antialiased">
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        {children}
         <Script
           src="https://booksy.com/widget/code.js?id=1710613&country=us&lang=en"
           strategy="lazyOnload"

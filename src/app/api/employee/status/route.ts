@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       .order('clock_in', { ascending: false })
 
     // Calculate today's total minutes
-    const todayMinutes = (todayEntries ?? []).reduce((acc, e) => {
+    const todayMinutes = (todayEntries ?? []).reduce((acc: number, e: { clock_in: string; clock_out: string | null }) => {
       if (!e.clock_out) return acc
       const ms = new Date(e.clock_out).getTime() - new Date(e.clock_in).getTime()
       return acc + Math.round(ms / 60000)
