@@ -128,6 +128,16 @@ body {
   z-index: 0;
 }
 
+/* ── Booksy widget — pin to bottom of screen ── */
+.booksy-widget-button,
+[class*="booksy-widget-button"] {
+  position: fixed !important;
+  bottom: 16px !important;
+  right: 16px !important;
+  top: auto !important;
+  z-index: 9999 !important;
+}
+
 /* ── Animated gold line ─────────────────────── */
 @keyframes lineExpand {
   from { width: 0; opacity: 0; }

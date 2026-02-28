@@ -17,8 +17,9 @@ export default function SetupPage() {
 
   useEffect(() => {
     fetch('/api/employee/setup')
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        const d = await r.json()
+        if (!r.ok) { setStatus('error'); return }
         if (d.setupRequired) {
           setStatus('ready')
         } else {
@@ -109,8 +110,16 @@ export default function SetupPage() {
           )}
 
           {status === 'error' && (
-            <div className="text-center">
-              <p className="text-red-400 text-sm font-sans">Could not connect. Check your Supabase environment variables.</p>
+            <div className="glass-card border border-border rounded-sm p-8 text-center flex flex-col gap-3">
+              <p className="text-red-400 text-sm font-sans font-medium">Could not connect to the database.</p>
+              <p className="text-offwhite/40 text-xs font-sans leading-relaxed">
+                Make sure these three environment variables are set in your Vercel project settings, then redeploy:
+              </p>
+              <ul className="text-left text-xs font-sans text-offwhite/30 space-y-1 mt-1">
+                <li>• <code className="text-gold/60">NEXT_PUBLIC_SUPABASE_URL</code></li>
+                <li>• <code className="text-gold/60">NEXT_PUBLIC_SUPABASE_ANON_KEY</code></li>
+                <li>• <code className="text-gold/60">SUPABASE_SERVICE_ROLE_KEY</code></li>
+              </ul>
             </div>
           )}
 
