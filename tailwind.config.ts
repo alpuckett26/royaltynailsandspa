@@ -10,12 +10,12 @@ const config: Config = {
     extend: {
       colors: {
         charcoal: {
-          DEFAULT: '#0B0F14',
-          50: '#1a2030',
-          100: '#141922',
-          200: '#0f1520',
-          300: '#0d121a',
-          400: '#0B0F14',
+          DEFAULT: '#0F0720',
+          50: '#2a1a45',
+          100: '#1e1035',
+          200: '#180c2c',
+          300: '#130926',
+          400: '#0F0720',
         },
         offwhite: {
           DEFAULT: '#F7F3EE',
@@ -32,8 +32,8 @@ const config: Config = {
           muted: '#C6A15B80',
         },
         border: {
-          DEFAULT: '#1E2530',
-          light: '#2a3140',
+          DEFAULT: '#2a1a45',
+          light: '#3a2560',
         },
       },
       fontFamily: {
@@ -78,9 +78,9 @@ const config: Config = {
       },
       backgroundImage: {
         'gold-gradient': 'linear-gradient(135deg, #C6A15B 0%, #E8C97A 50%, #C6A15B 100%)',
-        'dark-gradient': 'linear-gradient(180deg, #0B0F14 0%, #111820 100%)',
-        'hero-gradient': 'radial-gradient(ellipse at 60% 50%, #1a1f2e 0%, #0B0F14 70%)',
-        'card-gradient': 'linear-gradient(145deg, #111820 0%, #0d1219 100%)',
+        'dark-gradient': 'linear-gradient(180deg, #0F0720 0%, #180c2c 100%)',
+        'hero-gradient': 'radial-gradient(ellipse at 60% 50%, #2a1a45 0%, #0F0720 70%)',
+        'card-gradient': 'linear-gradient(145deg, #1e1035 0%, #130926 100%)',
         'shimmer-gold': 'linear-gradient(90deg, transparent 0%, #C6A15B20 50%, transparent 100%)',
       },
       boxShadow: {
