@@ -53,9 +53,11 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   try {
     const supabase = getSupabaseAdmin()
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from('employees')
       .select('id', { count: 'exact', head: true })
+
+    if (error) throw error
 
     return NextResponse.json({ setupRequired: count === 0 })
   } catch (err) {

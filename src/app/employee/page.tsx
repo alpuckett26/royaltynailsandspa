@@ -15,6 +15,7 @@ export default function EmployeeLoginPage() {
   const [pinError, setPinError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
+  const [listError, setListError] = useState(false)
 
   // Clear any existing session on the login page
   useEffect(() => {
@@ -25,9 +26,12 @@ export default function EmployeeLoginPage() {
 
   useEffect(() => {
     fetch('/api/employee/list')
-      .then((r) => r.json())
-      .then((d) => setEmployees(d.employees ?? []))
-      .catch(() => setEmployees([]))
+      .then(async (r) => {
+        const d = await r.json()
+        if (!r.ok) { setListError(true); return }
+        setEmployees(d.employees ?? [])
+      })
+      .catch(() => setListError(true))
       .finally(() => setFetching(false))
   }, [])
 
@@ -113,6 +117,13 @@ export default function EmployeeLoginPage() {
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="h-14 bg-border/30 rounded-sm animate-pulse" />
                 ))}
+              </div>
+            ) : listError ? (
+              <div className="glass-card border border-red-900/40 rounded-sm p-8 text-center flex flex-col items-center gap-3">
+                <p className="text-red-400 text-sm font-sans font-medium">Database connection failed.</p>
+                <p className="text-offwhite/30 text-xs font-sans leading-relaxed max-w-xs">
+                  Check that <code className="text-gold/60">NEXT_PUBLIC_SUPABASE_URL</code>, <code className="text-gold/60">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and <code className="text-gold/60">SUPABASE_SERVICE_ROLE_KEY</code> are set in Vercel, then redeploy.
+                </p>
               </div>
             ) : employees.length === 0 ? (
               <div className="glass-card border border-border rounded-sm p-8 text-center flex flex-col items-center gap-4">
