@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Cormorant_Garamond, Manrope } from 'next/font/google'
+import Script from 'next/script'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import './globals.css'
@@ -97,6 +98,10 @@ export default function RootLayout({
         <Header />
         <main>{children}</main>
         <Footer />
+        <Script
+          src="https://booksy.com/widget/code.js?id=1710613&country=us&lang=en"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   )

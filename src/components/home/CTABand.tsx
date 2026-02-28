@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
+import { BookNowButton } from '@/components/ui/BookNowButton'
 import { businessInfo } from '@/lib/content'
 
 export function CTABand() {
@@ -56,15 +57,15 @@ export function CTABand() {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-2">
+            <BookNowButton variant="primary" size="lg">
+              Book Now
+            </BookNowButton>
             <Button
               href={`tel:${businessInfo.phone}`}
-              variant="primary"
+              variant="gold-outline"
               size="lg"
             >
-              Call to Book
-            </Button>
-            <Button href="/packages" variant="gold-outline" size="lg">
-              Browse Services
+              Call Us
             </Button>
           </div>
 

@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
+import { BookNowButton } from '@/components/ui/BookNowButton'
 
 export function Hero() {
   return (
@@ -105,9 +106,9 @@ export function Hero() {
           transition={{ duration: 0.8, delay: 1 }}
           className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <Button href="tel:(214) 501-4300" variant="primary" size="lg">
-            Book a Call
-          </Button>
+          <BookNowButton variant="primary" size="lg">
+            Book Now
+          </BookNowButton>
           <Button href="/packages" variant="secondary" size="lg">
             View Packages
           </Button>

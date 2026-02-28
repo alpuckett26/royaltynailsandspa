@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
 import { Button } from '@/components/ui/Button'
+import { BookNowButton } from '@/components/ui/BookNowButton'
 import { businessInfo } from '@/lib/content'
 
 const navLinks = [
@@ -74,12 +75,15 @@ export function Header() {
           <div className="flex items-center gap-4">
             <Button
               href={`tel:${businessInfo.phone}`}
-              variant="primary"
+              variant="secondary"
               size="sm"
-              className="hidden sm:inline-flex"
+              className="hidden md:inline-flex"
             >
-              Book a Call
+              Call
             </Button>
+            <BookNowButton variant="primary" size="sm" className="hidden sm:inline-flex">
+              Book Now
+            </BookNowButton>
 
             {/* Hamburger */}
             <button
@@ -146,15 +150,18 @@ export function Header() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="mt-6"
+                className="mt-6 flex flex-col gap-3"
               >
+                <BookNowButton variant="primary" size="lg" className="w-full">
+                  Book Now
+                </BookNowButton>
                 <Button
                   href={`tel:${businessInfo.phone}`}
-                  variant="primary"
+                  variant="secondary"
                   size="lg"
                   className="w-full"
                 >
-                  Book a Call
+                  Call {businessInfo.phone}
                 </Button>
               </motion.div>
               <p className="mt-4 text-center text-xs text-offwhite/40 font-sans tracking-widest">
