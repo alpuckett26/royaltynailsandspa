@@ -141,9 +141,17 @@ export function Footer() {
           <p className="text-offwhite/30 text-xs font-sans tracking-wide">
             © {new Date().getFullYear()} {businessInfo.name}. All rights reserved.
           </p>
-          <p className="text-offwhite/20 text-xs font-sans">
-            Rowlett, Texas
-          </p>
+          <div className="flex items-center gap-6">
+            <p className="text-offwhite/20 text-xs font-sans">
+              Rowlett, Texas
+            </p>
+            <Link
+              href="/employee"
+              className="text-offwhite/15 hover:text-offwhite/40 text-xs font-sans transition-colors duration-300"
+            >
+              Staff Login
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
