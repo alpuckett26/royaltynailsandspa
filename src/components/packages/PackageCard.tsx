@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { clsx } from 'clsx'
-import { Button } from '@/components/ui/Button'
+import { BookNowButton } from '@/components/ui/BookNowButton'
 import type { Package } from '@/lib/content'
 
 type PackageCardProps = {
@@ -104,14 +104,13 @@ export function PackageCard({ pkg, categoryName, delay = 0 }: PackageCardProps) 
       </div>
 
       {/* CTA */}
-      <Button
-        href={`tel:(214) 501-4300`}
+      <BookNowButton
         variant={pkg.featured ? 'primary' : 'gold-outline'}
         size="sm"
         className="w-full"
       >
         Book This Service
-      </Button>
+      </BookNowButton>
     </motion.div>
   )
 }

@@ -144,6 +144,12 @@ export default function AdminPage() {
         </div>
         <div className="flex flex-col items-end gap-2">
           <button
+            onClick={() => router.push('/employee/schedule')}
+            className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
+          >
+            Schedule →
+          </button>
+          <button
             onClick={() => router.push('/employee/dashboard')}
             className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
           >
