@@ -424,6 +424,89 @@ export const serviceCategories: ServiceCategory[] = [
       },
     ],
   },
+  {
+    id: 'waxing',
+    name: 'Waxing',
+    eyebrow: 'Hair Removal',
+    description:
+      'Smooth, precise waxing services for face and body — performed with care to minimize discomfort and maximize results.',
+    packages: [
+      {
+        name: 'Eyebrow Wax',
+        price: 12,
+        description: 'Clean, defined brow shaping with professional wax.',
+        includes: ['Precision brow shaping', 'Wax removal', 'Soothing aftercare'],
+        bestFor: 'Maintaining clean, shaped brows',
+        featured: false,
+      },
+      {
+        name: 'Lip Wax',
+        price: 10,
+        description: 'Quick and effective upper lip hair removal.',
+        includes: ['Upper lip wax', 'Soothing aftercare'],
+        bestFor: 'Smooth, hair-free upper lip',
+        featured: false,
+      },
+      {
+        name: 'Chin Wax',
+        price: 12,
+        description: 'Precise chin hair removal for a clean, smooth finish.',
+        includes: ['Chin area wax', 'Soothing aftercare'],
+        bestFor: 'Clean chin and jaw area',
+        featured: false,
+      },
+      {
+        name: 'Full Face Wax',
+        price: 35,
+        description: 'Complete facial waxing — brows, lip, chin, and cheeks.',
+        includes: ['Brow shaping', 'Lip wax', 'Chin wax', 'Cheek wax', 'Soothing aftercare'],
+        bestFor: 'A comprehensive facial hair removal experience',
+        featured: false,
+      },
+      {
+        name: 'Underarm Wax',
+        price: 20,
+        description: 'Smooth underarm waxing with gentle soothing aftercare.',
+        includes: ['Full underarm wax', 'Soothing aftercare'],
+        bestFor: 'Clean, smooth underarms',
+        featured: false,
+      },
+      {
+        name: 'Half Leg Wax',
+        price: 30,
+        description: 'Waxing from knee to ankle for smooth lower legs.',
+        includes: ['Lower leg wax', 'Soothing aftercare'],
+        bestFor: 'Smooth lower legs',
+        featured: false,
+      },
+      {
+        name: 'Full Leg Wax',
+        price: 50,
+        description: 'Complete leg waxing from ankle to upper thigh.',
+        includes: ['Full leg wax', 'Soothing aftercare'],
+        bestFor: 'Complete leg smoothness',
+        featured: true,
+        badge: 'Popular',
+      },
+      {
+        name: 'Bikini Wax',
+        price: 35,
+        description: 'Neat bikini line waxing for a clean, confident look.',
+        includes: ['Bikini line wax', 'Soothing aftercare'],
+        bestFor: 'Clean bikini line',
+        featured: false,
+      },
+      {
+        name: 'Brazilian Wax',
+        price: 60,
+        description: 'Full Brazilian waxing performed with precision and care.',
+        includes: ['Full Brazilian wax', 'Extended soothing aftercare'],
+        bestFor: 'Complete, long-lasting smoothness',
+        featured: false,
+        badge: 'Specialty',
+      },
+    ],
+  },
 ]
 
 export type AddOn = {
@@ -652,6 +735,55 @@ export const brandValues = [
   },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SPECIALS
+// Edit this array to update monthly or holiday promotions.
+// Each special appears on the Home page Specials section.
+// ─────────────────────────────────────────────────────────────────────────────
+export type Special = {
+  id: string
+  eyebrow: string
+  title: string
+  description: string
+  highlight: string  // The specific service or deal being promoted
+  validThrough: string
+  badge?: string
+}
+
+export const specials: Special[] = [
+  {
+    id: 'spring-refresh-2026',
+    eyebrow: 'Spring Special',
+    title: 'Spring Refresh Package',
+    description:
+      'Celebrate the season with a complete head-to-toe renewal. Book a Signature Pedicure & Manicure and receive a complimentary Paraffin Wax Dip — on us.',
+    highlight: 'Signature Pedicure & Manicure + Free Paraffin Wax Dip',
+    validThrough: 'March 31, 2026',
+    badge: 'Limited Time',
+  },
+  {
+    id: 'referral-2026',
+    eyebrow: 'Ongoing Offer',
+    title: 'Refer a Friend & Save',
+    description:
+      'Bring a new guest and both of you receive $10 off any service $40 or more. Share the luxury — it\'s better together.',
+    highlight: '$10 off for you & your guest',
+    validThrough: 'No expiration',
+    badge: 'Ongoing',
+  },
+  {
+    id: 'first-visit-2026',
+    eyebrow: 'New Client Special',
+    title: 'First Visit Welcome',
+    description:
+      'New to Royalty Nails & Spa? Enjoy 10% off your first service of $35 or more. Experience the difference — we think you\'ll come back.',
+    highlight: '10% off your first visit',
+    validThrough: 'No expiration',
+    badge: 'New Clients',
+  },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Comparison features for the packages comparison grid
 export const comparisonFeatures = [
   { feature: 'Nail Trimming & Shaping', basic: true, deluxe: true, royal: true, exotic: true },
