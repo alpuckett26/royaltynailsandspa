@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
 import { PINPad } from '@/components/employee/PINPad'
 
 type Employee = { id: string; name: string; role: string }
@@ -114,13 +115,16 @@ export default function EmployeeLoginPage() {
                 ))}
               </div>
             ) : employees.length === 0 ? (
-              <div className="glass-card border border-border rounded-sm p-8 text-center">
-                <p className="text-offwhite/40 text-sm font-sans mb-4">
+              <div className="glass-card border border-border rounded-sm p-8 text-center flex flex-col items-center gap-4">
+                <p className="text-offwhite/40 text-sm font-sans">
                   No employees configured yet.
                 </p>
-                <p className="text-offwhite/25 text-xs font-sans leading-relaxed">
-                  Set up your Supabase database and add employees via the admin portal.
-                </p>
+                <Link
+                  href="/employee/setup"
+                  className="px-6 py-3 bg-gold text-charcoal text-xs tracking-widest uppercase font-semibold font-sans hover:bg-gold-light transition-colors duration-200"
+                >
+                  Run First-Time Setup
+                </Link>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
