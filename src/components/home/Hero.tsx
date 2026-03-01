@@ -73,11 +73,19 @@ export function Hero() {
               style={{ background: 'radial-gradient(ellipse at center, #C6A15B 0%, transparent 70%)' }}
               aria-hidden="true"
             />
-            <span
-              className="relative font-serif leading-none text-gold-shimmer"
-              style={{ fontSize: 'clamp(3.5rem, 8vw, 7rem)' }}
-            >
-              Royalty Nails &amp; Spa
+            <span className="relative flex flex-col items-center sm:block">
+              <span
+                className="font-serif leading-none text-gold-shimmer block"
+                style={{ fontSize: 'clamp(3.5rem, 9vw, 8rem)' }}
+              >
+                Royalty
+              </span>
+              <span
+                className="font-serif leading-none text-gold-shimmer block"
+                style={{ fontSize: 'clamp(2rem, 5vw, 4.5rem)' }}
+              >
+                Nails &amp; Spa
+              </span>
             </span>
           </span>
           <div className="flex items-center gap-3">
