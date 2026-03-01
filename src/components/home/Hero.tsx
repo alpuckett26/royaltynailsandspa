@@ -64,13 +64,29 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="flex items-center justify-center gap-4 mb-8"
+          className="flex flex-col items-center gap-3 mb-8"
         >
-          <span className="block h-px w-8 bg-gold/60" />
-          <span className="text-xs tracking-[0.35em] uppercase text-gold font-sans">
-            Rowlett, Texas
+          <span className="relative inline-block">
+            {/* Spotlight glow behind the text */}
+            <span
+              className="absolute inset-0 -inset-x-12 blur-2xl opacity-30 rounded-full"
+              style={{ background: 'radial-gradient(ellipse at center, #C6A15B 0%, transparent 70%)' }}
+              aria-hidden="true"
+            />
+            <span
+              className="relative font-serif leading-none text-gold-shimmer"
+              style={{ fontSize: 'clamp(3.5rem, 8vw, 7rem)' }}
+            >
+              Royalty Nails &amp; Spa
+            </span>
           </span>
-          <span className="block h-px w-8 bg-gold/60" />
+          <div className="flex items-center gap-3">
+            <span className="block h-px w-6 bg-gold/50" />
+            <span className="text-[10px] tracking-[0.3em] uppercase text-gold/70 font-sans">
+              Rowlett, Texas
+            </span>
+            <span className="block h-px w-6 bg-gold/50" />
+          </div>
         </motion.div>
 
         {/* Main headline */}

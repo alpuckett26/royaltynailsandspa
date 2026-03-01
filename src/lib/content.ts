@@ -17,7 +17,7 @@ export const businessInfo = {
     weekends: 'Sunday: By Appointment Only',
   },
   social: {
-    instagram: '#',
+    instagram: 'https://www.instagram.com/royalty_nailsspa',
     facebook: '#',
     google: '#',
   },

@@ -43,12 +43,9 @@ export function Header() {
         )}
       >
         <nav className="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo — tagline only, name lives in the hero */}
           <Link href="/" className="group flex flex-col items-start gap-0.5">
-            <span className="font-serif text-xl md:text-2xl text-offwhite tracking-wide leading-none group-hover:text-gold transition-colors duration-300">
-              {businessInfo.name}
-            </span>
-            <span className="text-[10px] tracking-[0.3em] uppercase text-gold/70 font-sans">
+            <span className="text-[10px] tracking-[0.3em] uppercase text-gold/70 font-sans group-hover:text-gold transition-colors duration-300">
               {businessInfo.tagline}
             </span>
           </Link>

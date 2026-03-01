@@ -94,10 +94,6 @@ export default function RootLayout({
     >
       <body className="bg-charcoal text-offwhite antialiased">
         {children}
-        <Script
-          src="https://booksy.com/widget/code.js?id=1710613&country=us&lang=en"
-          strategy="lazyOnload"
-        />
       </body>
     </html>
   )

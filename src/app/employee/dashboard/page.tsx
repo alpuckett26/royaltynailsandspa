@@ -117,14 +117,22 @@ export default function DashboardPage() {
         >
           Sign Out
         </button>
-        {employee.role === 'admin' && (
+        <div className="flex items-center gap-4">
           <button
-            onClick={() => router.push('/employee/admin')}
-            className="text-xs tracking-widest uppercase text-gold/40 hover:text-gold font-sans transition-colors duration-200"
+            onClick={() => router.push('/employee/checkin')}
+            className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
           >
-            Admin View →
+            Check-In Queue →
           </button>
-        )}
+          {employee.role === 'admin' && (
+            <button
+              onClick={() => router.push('/employee/admin')}
+              className="text-xs tracking-widest uppercase text-gold/40 hover:text-gold font-sans transition-colors duration-200"
+            >
+              Admin View →
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
