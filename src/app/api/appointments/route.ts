@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { sendBookingNotification, sendCustomerConfirmation } from '@/lib/email'
 
 // ── GET /api/appointments?date=YYYY-MM-DD ─────────────────────────────────────
 // Returns all appointments for the given date (defaults to today).
@@ -77,6 +78,29 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) throw error
+
+    // Send notification emails (non-blocking — failures don't affect the response)
+    void sendBookingNotification({
+      customerName:  customerName.trim(),
+      customerEmail: customerEmail?.trim(),
+      customerPhone: customerPhone?.trim(),
+      service:       service.trim(),
+      date:          date ?? new Date().toISOString().split('T')[0],
+      time:          time,
+      notes:         notes?.trim(),
+    })
+
+    if (customerEmail?.trim()) {
+      void sendCustomerConfirmation({
+        customerName:  customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        service:       service.trim(),
+        date:          date ?? new Date().toISOString().split('T')[0],
+        time:          time,
+        notes:         notes?.trim(),
+        appointmentId: data.id,
+      })
+    }
 
     return NextResponse.json({ id: data.id }, { status: 201 })
   } catch (err) {
