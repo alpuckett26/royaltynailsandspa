@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { sendBookingNotification, sendCustomerConfirmation } from '@/lib/email'
 
 // ── GET /api/appointments?date=YYYY-MM-DD ─────────────────────────────────────
 // Returns all appointments for the given date (defaults to today).
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from('appointments')
-      .select('id, customer_name, service, appointment_date, appointment_time, notes, checked_in, created_at')
+      .select('id, customer_name, customer_email, customer_phone, service, appointment_date, appointment_time, notes, checked_in, created_at')
       .eq('appointment_date', date)
       .order('appointment_time', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: true })
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as {
       customerName?: string
+      customerEmail?: string
+      customerPhone?: string
       service?: string
       date?: string
       time?: string
@@ -38,7 +41,7 @@ export async function POST(req: NextRequest) {
       adminId?: string
     }
 
-    const { customerName, service, date, time, notes, adminId } = body
+    const { customerName, customerEmail, customerPhone, service, date, time, notes, adminId } = body
 
     if (!customerName?.trim() || !service?.trim() || !adminId) {
       return NextResponse.json(
@@ -64,6 +67,8 @@ export async function POST(req: NextRequest) {
       .from('appointments')
       .insert({
         customer_name: customerName.trim(),
+        customer_email: customerEmail?.trim() || null,
+        customer_phone: customerPhone?.trim() || null,
         service: service.trim(),
         appointment_date: date ?? new Date().toISOString().split('T')[0],
         appointment_time: time || null,
@@ -73,6 +78,29 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) throw error
+
+    // Send notification emails (non-blocking — failures don't affect the response)
+    void sendBookingNotification({
+      customerName:  customerName.trim(),
+      customerEmail: customerEmail?.trim(),
+      customerPhone: customerPhone?.trim(),
+      service:       service.trim(),
+      date:          date ?? new Date().toISOString().split('T')[0],
+      time:          time,
+      notes:         notes?.trim(),
+    })
+
+    if (customerEmail?.trim()) {
+      void sendCustomerConfirmation({
+        customerName:  customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        service:       service.trim(),
+        date:          date ?? new Date().toISOString().split('T')[0],
+        time:          time,
+        notes:         notes?.trim(),
+        appointmentId: data.id,
+      })
+    }
 
     return NextResponse.json({ id: data.id }, { status: 201 })
   } catch (err) {

@@ -10,6 +10,8 @@ type SessionEmployee = { id: string; name: string; role: string }
 type Appointment = {
   id: string
   customer_name: string
+  customer_email: string | null
+  customer_phone: string | null
   service: string
   appointment_date: string
   appointment_time: string | null
@@ -18,15 +20,62 @@ type Appointment = {
   created_at: string
 }
 
-function fmt12h(t: string | null): string {
+type LastBooked = {
+  id: string
+  name: string
+  email: string
+  service: string
+  date: string
+  time: string
+}
+
+function fmt12h(t: string | null | undefined): string {
   if (!t) return '—'
   const [h, m] = t.split(':').map(Number)
   const ampm = h >= 12 ? 'PM' : 'AM'
   return `${h % 12 || 12}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
+function fmtDate(d: string): string {
+  const [y, mo, day] = d.split('-').map(Number)
+  return new Date(y, mo - 1, day).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+  })
+}
+
 function todayDate() {
   return new Date().toISOString().split('T')[0]
+}
+
+function buildGoogleCalUrl(appt: LastBooked): string {
+  const title    = encodeURIComponent(`Royalty Nails & Spa — ${appt.service}`)
+  const details  = encodeURIComponent(`Appointment for ${appt.name}\nService: ${appt.service}\nPhone: (214) 501-4300`)
+  const location = encodeURIComponent('6909 Rowlett Road, Suite 102, Rowlett, TX 75089')
+  let dates = ''
+  if (appt.date && appt.time) {
+    const [y, mo, d] = appt.date.split('-')
+    const [h, m]     = appt.time.split(':')
+    const pad = (n: string) => n.padStart(2, '0')
+    const start = `${y}${pad(mo)}${pad(d)}T${pad(h)}${pad(m)}00`
+    const endH  = String(Number(h) + 1).padStart(2, '0')
+    const end   = `${y}${pad(mo)}${pad(d)}T${pad(endH)}${pad(m)}00`
+    dates = `${start}/${end}`
+  } else if (appt.date) {
+    const [y, mo, d] = appt.date.split('-')
+    dates = `${y}${mo}${d}/${y}${mo}${d}`
+  }
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`
+}
+
+function buildIcalUrl(appt: LastBooked): string {
+  const p = new URLSearchParams({
+    name:    appt.name,
+    service: appt.service,
+    date:    appt.date,
+    time:    appt.time,
+    id:      appt.id,
+  })
+  return `/api/appointments/ical?${p.toString()}`
 }
 
 export default function AppointmentsPage() {
@@ -39,12 +88,17 @@ export default function AppointmentsPage() {
   // Add form
   const [showForm, setShowForm] = useState(false)
   const [fName, setFName] = useState('')
+  const [fEmail, setFEmail] = useState('')
+  const [fPhone, setFPhone] = useState('')
   const [fService, setFService] = useState('')
   const [fTime, setFTime] = useState('')
   const [fNotes, setFNotes] = useState('')
   const [fDate, setFDate] = useState(todayDate())
   const [formLoading, setFormLoading] = useState(false)
-  const [formMsg, setFormMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [formErr, setFormErr] = useState<string | null>(null)
+
+  // Confirmation panel shown after a successful add
+  const [lastBooked, setLastBooked] = useState<LastBooked | null>(null)
 
   // Auth — any active employee
   useEffect(() => {
@@ -72,28 +126,32 @@ export default function AppointmentsPage() {
     e.preventDefault()
     if (!employee || !fName.trim() || !fService) return
     setFormLoading(true)
-    setFormMsg(null)
+    setFormErr(null)
+    setLastBooked(null)
     try {
       const res = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName: fName.trim(),
-          service: fService,
-          date: fDate,
-          time: fTime || undefined,
-          notes: fNotes.trim() || undefined,
-          adminId: employee.id,
+          customerName:  fName.trim(),
+          customerEmail: fEmail.trim() || undefined,
+          customerPhone: fPhone.trim() || undefined,
+          service:       fService,
+          date:          fDate,
+          time:          fTime || undefined,
+          notes:         fNotes.trim() || undefined,
+          adminId:       employee.id,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setFormMsg({ type: 'ok', text: 'Appointment added.' })
-      setFName(''); setFService(''); setFTime(''); setFNotes('')
+
+      setLastBooked({ id: data.id, name: fName.trim(), email: fEmail.trim(), service: fService, date: fDate, time: fTime })
+      setFName(''); setFEmail(''); setFPhone(''); setFService(''); setFTime(''); setFNotes('')
       setFDate(todayDate())
       fetchAppointments(date)
     } catch (err) {
-      setFormMsg({ type: 'err', text: err instanceof Error ? err.message : 'Failed.' })
+      setFormErr(err instanceof Error ? err.message : 'Failed.')
     } finally {
       setFormLoading(false)
     }
@@ -192,6 +250,11 @@ export default function AppointmentsPage() {
                       <div className="min-w-0">
                         <p className="font-serif text-base text-offwhite truncate">{appt.customer_name}</p>
                         <p className="text-xs font-sans text-gold/60 truncate">{appt.service}</p>
+                        {(appt.customer_email || appt.customer_phone) && (
+                          <p className="text-[11px] font-sans text-offwhite/50 truncate">
+                            {[appt.customer_email, appt.customer_phone].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
                         {appt.notes && (
                           <p className="text-[11px] font-sans text-offwhite/30 truncate">{appt.notes}</p>
                         )}
@@ -236,77 +299,166 @@ export default function AppointmentsPage() {
       )}
 
       {/* Add appointment form */}
-      <div className="border-t border-border/40 pt-6">
+      <div className="border-t border-border/40 pt-6 flex flex-col gap-4">
         <button
-          onClick={() => setShowForm(v => !v)}
+          onClick={() => { setShowForm(v => !v); setLastBooked(null) }}
           className="flex items-center gap-3 text-sm font-sans text-offwhite/40 hover:text-offwhite/70 transition-colors duration-200"
         >
           <span className="text-gold/50 text-lg leading-none">{showForm ? '−' : '+'}</span>
           <span className="tracking-widest uppercase text-xs">Add Appointment</span>
         </button>
 
-        {showForm && (
-          <motion.form
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleAdd}
-            className="mt-6 glass-card border border-border rounded-sm p-6 grid grid-cols-2 sm:grid-cols-3 gap-4"
-          >
-            {/* Customer name */}
-            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
-                Customer Name <span className="text-gold">*</span>
-              </label>
-              <input type="text" value={fName} onChange={e => setFName(e.target.value)}
-                placeholder="Full name" required className={inputClass} />
-            </div>
+        <AnimatePresence mode="wait">
+          {showForm && !lastBooked && (
+            <motion.form
+              key="form"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              onSubmit={handleAdd}
+              className="glass-card border border-border rounded-sm p-6 grid grid-cols-2 sm:grid-cols-3 gap-4"
+            >
+              {/* Customer name */}
+              <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
+                  Customer Name <span className="text-gold">*</span>
+                </label>
+                <input type="text" value={fName} onChange={e => setFName(e.target.value)}
+                  placeholder="Full name" required className={inputClass} />
+              </div>
 
-            {/* Service */}
-            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
-                Service <span className="text-gold">*</span>
-              </label>
-              <select value={fService} onChange={e => setFService(e.target.value)} required
-                className={`${inputClass} appearance-none cursor-pointer`}>
-                <option value="">Select…</option>
-                {serviceCategories.map(cat => (
-                  <option key={cat.id} value={cat.name}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
+              {/* Email */}
+              <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
+                  Email (optional)
+                </label>
+                <input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)}
+                  placeholder="customer@email.com" className={inputClass} />
+              </div>
 
-            {/* Date */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Date</label>
-              <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className={inputClass} />
-            </div>
+              {/* Phone */}
+              <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
+                  Phone (optional)
+                </label>
+                <input type="tel" value={fPhone} onChange={e => setFPhone(e.target.value)}
+                  placeholder="(214) 555-0100" className={inputClass} />
+              </div>
 
-            {/* Time */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Time (optional)</label>
-              <input type="time" value={fTime} onChange={e => setFTime(e.target.value)} className={inputClass} />
-            </div>
+              {/* Service */}
+              <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
+                  Service <span className="text-gold">*</span>
+                </label>
+                <select value={fService} onChange={e => setFService(e.target.value)} required
+                  className={`${inputClass} appearance-none cursor-pointer`}>
+                  <option value="">Select…</option>
+                  {serviceCategories.map(cat => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Notes */}
-            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Notes (optional)</label>
-              <input type="text" value={fNotes} onChange={e => setFNotes(e.target.value)}
-                placeholder="e.g. Gel upgrade" className={inputClass} />
-            </div>
+              {/* Date */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Date</label>
+                <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className={inputClass} />
+              </div>
 
-            <div className="col-span-2 sm:col-span-3 flex items-center gap-4">
-              <button type="submit" disabled={formLoading}
-                className="px-6 py-2.5 bg-gold text-charcoal text-xs tracking-widest uppercase font-sans hover:bg-gold-light transition-colors duration-200 disabled:opacity-50">
-                {formLoading ? 'Adding…' : 'Add Appointment'}
-              </button>
-              {formMsg && (
-                <p className={`text-xs font-sans ${formMsg.type === 'ok' ? 'text-gold' : 'text-red-400'}`}>
-                  {formMsg.text}
+              {/* Time */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Time (optional)</label>
+                <input type="time" value={fTime} onChange={e => setFTime(e.target.value)} className={inputClass} />
+              </div>
+
+              {/* Notes */}
+              <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Notes (optional)</label>
+                <input type="text" value={fNotes} onChange={e => setFNotes(e.target.value)}
+                  placeholder="e.g. Gel upgrade" className={inputClass} />
+              </div>
+
+              <div className="col-span-2 sm:col-span-3 flex items-center gap-4">
+                <button type="submit" disabled={formLoading}
+                  className="px-6 py-2.5 bg-gold text-charcoal text-xs tracking-widest uppercase font-sans hover:bg-gold-light transition-colors duration-200 disabled:opacity-50">
+                  {formLoading ? 'Adding…' : 'Add Appointment'}
+                </button>
+                {formErr && (
+                  <p className="text-xs font-sans text-red-400">{formErr}</p>
+                )}
+              </div>
+            </motion.form>
+          )}
+
+          {/* ── Booking confirmation + Add to Calendar ── */}
+          {lastBooked && (
+            <motion.div
+              key="confirm"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="glass-card border border-gold/25 rounded-sm p-6 flex flex-col gap-5"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] tracking-widest uppercase text-gold/60 font-sans mb-1">Appointment Booked</p>
+                  <p className="font-serif text-xl text-offwhite">{lastBooked.name}</p>
+                  <p className="text-sm font-sans text-gold/70 mt-0.5">{lastBooked.service}</p>
+                  <p className="text-xs font-sans text-offwhite/40 mt-1">
+                    {fmtDate(lastBooked.date)}{lastBooked.time && ` · ${fmt12h(lastBooked.time)}`}
+                  </p>
+                  {lastBooked.email && (
+                    <p className="text-[11px] font-sans text-gold/40 mt-1">
+                      Confirmation sent to {lastBooked.email}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setLastBooked(null)}
+                  className="text-offwhite/20 hover:text-offwhite/50 text-xs font-sans transition-colors duration-150 shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Calendar buttons */}
+              <div>
+                <p className="text-[10px] tracking-widest uppercase text-offwhite/30 font-sans mb-3">
+                  Add to Customer&apos;s Calendar
                 </p>
-              )}
-            </div>
-          </motion.form>
-        )}
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href={buildGoogleCalUrl(lastBooked)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gold text-charcoal text-xs tracking-widest uppercase font-sans hover:bg-gold-light transition-colors duration-200 rounded-sm"
+                  >
+                    Google Calendar
+                  </a>
+                  <a
+                    href={buildIcalUrl(lastBooked)}
+                    download="royalty-nails-appointment.ics"
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-border text-offwhite/60 text-xs tracking-widest uppercase font-sans hover:text-offwhite hover:border-offwhite/30 transition-colors duration-200 rounded-sm"
+                  >
+                    Apple / Outlook (.ics)
+                  </a>
+                </div>
+                <p className="text-[10px] font-sans text-offwhite/20 mt-3">
+                  Hand the phone to the customer or share the link so they can save the appointment.
+                </p>
+              </div>
+
+              {/* Add another */}
+              <button
+                onClick={() => setLastBooked(null)}
+                className="self-start text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
+              >
+                + Add another appointment
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )
