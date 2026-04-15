@@ -73,19 +73,19 @@ export function BookingCTA() {
             />
             <div className="relative z-10 flex flex-col gap-5">
               <span className="text-[9px] tracking-[0.3em] uppercase text-gold/60 font-sans">
-                Online — Powered by Booksy
+                Online Booking
               </span>
               <h3 className="font-serif text-2xl text-offwhite leading-tight">
                 Book Online<br />Anytime
               </h3>
               <p className="text-sm text-offwhite/50 font-sans leading-relaxed max-w-sm">
-                Select your service, choose a time, and confirm your appointment
-                instantly — 24/7, no phone call required.
+                Select your service, choose a time, and secure your appointment
+                with a deposit — 24/7, no phone call required.
               </p>
               <ul className="flex flex-col gap-2 text-xs text-offwhite/40 font-sans">
-                <li className="flex items-center gap-2"><span className="text-gold/60">◆</span> Real-time availability</li>
                 <li className="flex items-center gap-2"><span className="text-gold/60">◆</span> Instant confirmation</li>
-                <li className="flex items-center gap-2"><span className="text-gold/60">◆</span> Appointment reminders</li>
+                <li className="flex items-center gap-2"><span className="text-gold/60">◆</span> Deposit applied to your total</li>
+                <li className="flex items-center gap-2"><span className="text-gold/60">◆</span> Confirmation email + calendar invite</li>
               </ul>
               <BookNowButton variant="primary" size="md" className="self-start mt-2">
                 Book Online
