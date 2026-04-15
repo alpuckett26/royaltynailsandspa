@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from('appointments')
-      .select('id, customer_name, service, appointment_date, appointment_time, notes, checked_in, created_at')
+      .select('id, customer_name, customer_email, customer_phone, service, appointment_date, appointment_time, notes, checked_in, created_at')
       .eq('appointment_date', date)
       .order('appointment_time', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: true })
@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as {
       customerName?: string
+      customerEmail?: string
+      customerPhone?: string
       service?: string
       date?: string
       time?: string
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
       adminId?: string
     }
 
-    const { customerName, service, date, time, notes, adminId } = body
+    const { customerName, customerEmail, customerPhone, service, date, time, notes, adminId } = body
 
     if (!customerName?.trim() || !service?.trim() || !adminId) {
       return NextResponse.json(
@@ -64,6 +66,8 @@ export async function POST(req: NextRequest) {
       .from('appointments')
       .insert({
         customer_name: customerName.trim(),
+        customer_email: customerEmail?.trim() || null,
+        customer_phone: customerPhone?.trim() || null,
         service: service.trim(),
         appointment_date: date ?? new Date().toISOString().split('T')[0],
         appointment_time: time || null,

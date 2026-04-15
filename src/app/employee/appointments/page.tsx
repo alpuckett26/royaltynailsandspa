@@ -10,6 +10,8 @@ type SessionEmployee = { id: string; name: string; role: string }
 type Appointment = {
   id: string
   customer_name: string
+  customer_email: string | null
+  customer_phone: string | null
   service: string
   appointment_date: string
   appointment_time: string | null
@@ -39,6 +41,8 @@ export default function AppointmentsPage() {
   // Add form
   const [showForm, setShowForm] = useState(false)
   const [fName, setFName] = useState('')
+  const [fEmail, setFEmail] = useState('')
+  const [fPhone, setFPhone] = useState('')
   const [fService, setFService] = useState('')
   const [fTime, setFTime] = useState('')
   const [fNotes, setFNotes] = useState('')
@@ -79,6 +83,8 @@ export default function AppointmentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName: fName.trim(),
+          customerEmail: fEmail.trim() || undefined,
+          customerPhone: fPhone.trim() || undefined,
           service: fService,
           date: fDate,
           time: fTime || undefined,
@@ -89,7 +95,7 @@ export default function AppointmentsPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setFormMsg({ type: 'ok', text: 'Appointment added.' })
-      setFName(''); setFService(''); setFTime(''); setFNotes('')
+      setFName(''); setFEmail(''); setFPhone(''); setFService(''); setFTime(''); setFNotes('')
       setFDate(todayDate())
       fetchAppointments(date)
     } catch (err) {
@@ -192,6 +198,11 @@ export default function AppointmentsPage() {
                       <div className="min-w-0">
                         <p className="font-serif text-base text-offwhite truncate">{appt.customer_name}</p>
                         <p className="text-xs font-sans text-gold/60 truncate">{appt.service}</p>
+                        {(appt.customer_email || appt.customer_phone) && (
+                          <p className="text-[11px] font-sans text-offwhite/50 truncate">
+                            {[appt.customer_email, appt.customer_phone].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
                         {appt.notes && (
                           <p className="text-[11px] font-sans text-offwhite/30 truncate">{appt.notes}</p>
                         )}
@@ -259,6 +270,24 @@ export default function AppointmentsPage() {
               </label>
               <input type="text" value={fName} onChange={e => setFName(e.target.value)}
                 placeholder="Full name" required className={inputClass} />
+            </div>
+
+            {/* Email */}
+            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
+                Email (optional)
+              </label>
+              <input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)}
+                placeholder="customer@email.com" className={inputClass} />
+            </div>
+
+            {/* Phone */}
+            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
+                Phone (optional)
+              </label>
+              <input type="tel" value={fPhone} onChange={e => setFPhone(e.target.value)}
+                placeholder="(214) 555-0100" className={inputClass} />
             </div>
 
             {/* Service */}

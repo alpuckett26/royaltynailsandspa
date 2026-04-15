@@ -6,6 +6,8 @@
 create table if not exists appointments (
   id               uuid primary key default gen_random_uuid(),
   customer_name    text not null,
+  customer_email   text,          -- optional
+  customer_phone   text,          -- optional
   service          text not null,
   appointment_date date not null default current_date,
   appointment_time time,          -- optional, e.g. '14:30:00'
