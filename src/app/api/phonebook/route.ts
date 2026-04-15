@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
 // ── GET /api/phonebook?adminId=xxx ────────────────────────────────────────────
-// Returns a deduplicated list of all customers from appointment history,
-// grouped by email, with visit count, last service, and last visit date.
+// Without email: returns deduplicated customer list.
+// With email:    returns full appointment history for that customer.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const adminId = searchParams.get('adminId')
+  const email   = searchParams.get('email')
 
   if (!adminId) {
     return NextResponse.json({ error: 'adminId is required' }, { status: 400 })
@@ -25,6 +26,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
+  // ── Single customer history ──────────────────────────────────────────────
+  if (email) {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('id, service, appointment_date, appointment_time, notes, checked_in, created_at')
+      .eq('customer_email', email.toLowerCase().trim())
+      .order('appointment_date', { ascending: false })
+      .order('created_at', { ascending: false })
+
+    if (error) return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 })
+    return NextResponse.json({ history: data })
+  }
+
+  // ── All customers list ───────────────────────────────────────────────────
   const { data, error } = await supabase
     .from('appointments')
     .select('customer_name, customer_email, customer_phone, service, appointment_date, created_at')
