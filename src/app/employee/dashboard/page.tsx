@@ -124,6 +124,18 @@ export default function DashboardPage() {
           >
             Check-In Queue →
           </button>
+          <button
+            onClick={() => router.push('/employee/appointments')}
+            className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
+          >
+            Appointments →
+          </button>
+          <button
+            onClick={() => router.push('/employee/phonebook')}
+            className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
+          >
+            Phonebook →
+          </button>
           {employee.role === 'admin' && (
             <button
               onClick={() => router.push('/employee/admin')}

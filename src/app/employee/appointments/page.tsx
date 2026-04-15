@@ -188,6 +188,10 @@ export default function AppointmentsPage() {
             className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200">
             Check-In Queue →
           </button>
+          <button onClick={() => router.push('/employee/phonebook')}
+            className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200">
+            Phonebook →
+          </button>
           <button onClick={() => { sessionStorage.removeItem('rns_employee'); router.push('/employee') }}
             className="text-xs tracking-widest uppercase text-offwhite/20 hover:text-offwhite/40 font-sans transition-colors duration-200">
             Sign Out
@@ -330,19 +334,19 @@ export default function AppointmentsPage() {
               {/* Email */}
               <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
                 <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
-                  Email (optional)
+                  Email <span className="text-gold">*</span>
                 </label>
                 <input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)}
-                  placeholder="customer@email.com" className={inputClass} />
+                  placeholder="customer@email.com" required className={inputClass} />
               </div>
 
               {/* Phone */}
               <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
                 <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
-                  Phone (optional)
+                  Phone <span className="text-gold">*</span>
                 </label>
                 <input type="tel" value={fPhone} onChange={e => setFPhone(e.target.value)}
-                  placeholder="(214) 555-0100" className={inputClass} />
+                  placeholder="(214) 555-0100" required className={inputClass} />
               </div>
 
               {/* Service */}

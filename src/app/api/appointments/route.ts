@@ -43,9 +43,9 @@ export async function POST(req: NextRequest) {
 
     const { customerName, customerEmail, customerPhone, service, date, time, notes, adminId } = body
 
-    if (!customerName?.trim() || !service?.trim() || !adminId) {
+    if (!customerName?.trim() || !service?.trim() || !adminId || !customerEmail?.trim() || !customerPhone?.trim()) {
       return NextResponse.json(
-        { error: 'customerName, service, and adminId are required' },
+        { error: 'customerName, customerEmail, customerPhone, service, and adminId are required' },
         { status: 400 }
       )
     }
