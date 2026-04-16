@@ -66,6 +66,44 @@ const categoryFrom: Record<string, number> = {
   acrylics: 40, facials: 55, waxing: 10,
 }
 
+type AddOnSuggestion = { name: string; orig: number; bundle: number; priceNote?: string; description: string }
+
+const ADD_ON_SUGGESTIONS: Record<string, AddOnSuggestion[]> = {
+  manicures: [
+    { name: 'Gel Polish Upgrade', orig: 20, bundle: 16, description: 'Long-lasting gel finish' },
+    { name: 'Paraffin Wax Dip',   orig: 15, bundle: 12, description: 'Deep moisturizing treatment' },
+    { name: 'French Tips',        orig: 10, bundle: 8,  description: 'Classic or ombré French tips' },
+    { name: 'Nail Art',           orig: 5,  bundle: 4,  priceNote: '/nail', description: 'Accent art (min. 2 nails)' },
+  ],
+  pedicures: [
+    { name: 'Paraffin Wax Dip',   orig: 15, bundle: 12, description: 'Deep moisturizing for feet' },
+    { name: 'Callus Treatment',   orig: 15, bundle: 12, description: 'Intensive callus removal' },
+    { name: 'Hot Stone Add-on',   orig: 12, bundle: 10, description: 'Hot stone massage therapy' },
+    { name: 'Gel Polish Upgrade', orig: 20, bundle: 16, description: 'Long-lasting gel finish' },
+  ],
+  combinations: [
+    { name: 'Gel Polish Upgrade', orig: 20, bundle: 16, description: 'Upgrade both hands & feet to gel' },
+    { name: 'Nail Art',           orig: 5,  bundle: 4,  priceNote: '/nail', description: 'Accent art for hands or feet' },
+    { name: 'Hot Stone Add-on',   orig: 12, bundle: 10, description: 'Extended hot stone time' },
+  ],
+  acrylics: [
+    { name: 'Nail Art',           orig: 5,  bundle: 4,  priceNote: '/nail', description: 'Accent nail art (min. 2 nails)' },
+    { name: 'French Tips',        orig: 10, bundle: 8,  description: 'Classic or ombré French tips' },
+    { name: 'Hot Stone Add-on',   orig: 12, bundle: 10, description: 'Relaxing hand massage add-on' },
+  ],
+  facials: [
+    { name: 'Hot Stone Add-on',   orig: 12, bundle: 10, description: 'Hot stone face & neck massage' },
+  ],
+  waxing: [],
+}
+
+function getCategoryId(serviceName: string) {
+  for (const cat of serviceCategories) {
+    if (cat.packages.some(p => p.name === serviceName)) return cat.id
+  }
+  return null
+}
+
 export default function BookPage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>(1)
@@ -83,6 +121,25 @@ export default function BookPage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
+
+  // Add-ons
+  const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set())
+
+  // Pre-select service from URL param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const svc = params.get('service')
+    if (!svc) return
+    const decoded = decodeURIComponent(svc)
+    for (const cat of serviceCategories) {
+      const pkg = cat.packages.find(p => p.name === decoded)
+      if (pkg) {
+        setSelectedService({ name: pkg.name, price: pkg.price })
+        setStep(2)
+        break
+      }
+    }
+  }, [])
 
   // Step 4 — Square
   const [sqReady, setSqReady] = useState(false)
@@ -150,7 +207,16 @@ export default function BookPage() {
           service:       selectedService!.name,
           date,
           time:          time || undefined,
-          notes:         notes.trim() || undefined,
+          notes: [
+            notes.trim(),
+            selectedAddOns.size > 0
+              ? `Add-ons: ${Array.from(selectedAddOns).map(n => {
+                  const catId = getCategoryId(selectedService!.name)
+                  const a = catId ? ADD_ON_SUGGESTIONS[catId]?.find(x => x.name === n) : null
+                  return a ? `${n} ($${a.bundle}${a.priceNote ?? ''} bundle)` : n
+                }).join(', ')}`
+              : '',
+          ].filter(Boolean).join(' | ') || undefined,
         }),
       })
       const data = await res.json()
@@ -506,6 +572,50 @@ export default function BookPage() {
                   <p className="font-serif text-2xl text-gold">${DEPOSIT}.00</p>
                 </div>
               </div>
+
+              {/* Add-ons upsell */}
+              {(() => {
+                const catId = getCategoryId(selectedService?.name ?? '')
+                const suggestions = catId ? (ADD_ON_SUGGESTIONS[catId] ?? []) : []
+                if (!suggestions.length) return null
+                return (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] tracking-widest uppercase text-offwhite/40 font-sans">Enhance Your Visit</p>
+                      <span className="text-[9px] tracking-widest uppercase text-gold/60 font-sans">Bundle & Save</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {suggestions.map(addon => {
+                        const sel = selectedAddOns.has(addon.name)
+                        return (
+                          <button
+                            key={addon.name}
+                            onClick={() => {
+                              const next = new Set(selectedAddOns)
+                              sel ? next.delete(addon.name) : next.add(addon.name)
+                              setSelectedAddOns(next)
+                            }}
+                            className={`text-left p-4 rounded-sm border transition-colors duration-150 flex flex-col gap-1 ${
+                              sel ? 'border-gold/50 bg-gold/5' : 'border-border/40 bg-charcoal hover:border-border/70'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-sans text-sm text-offwhite leading-snug">{addon.name}</p>
+                              <div className="text-right shrink-0">
+                                <p className="text-[10px] font-sans text-offwhite/25 line-through">${addon.orig}{addon.priceNote}</p>
+                                <p className="font-serif text-base text-gold">${addon.bundle}{addon.priceNote}</p>
+                              </div>
+                            </div>
+                            <p className="text-[11px] font-sans text-offwhite/35">{addon.description}</p>
+                            {sel && <p className="text-[9px] tracking-widest uppercase text-gold font-sans mt-1">✓ Added</p>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <p className="text-[10px] font-sans text-offwhite/25">Add-on prices settled at the salon — deposit covers your appointment only.</p>
+                  </div>
+                )
+              })()}
 
               {/* Square card form */}
               <div className="flex flex-col gap-3">
