@@ -1,31 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { serviceCategories } from '@/lib/content'
 
-declare global {
-  interface Window {
-    Square?: {
-      payments: (appId: string, locationId: string) => Promise<{
-        card: (options?: object) => Promise<{
-          attach: (selector: string) => Promise<void>
-          tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>
-          destroy: () => Promise<void>
-        }>
-      }>
-    }
-  }
-}
-
-const APP_ID      = process.env.NEXT_PUBLIC_SQUARE_APP_ID!
-const LOCATION_ID = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID!
-const SQ_ENV      = process.env.NEXT_PUBLIC_SQUARE_ENV ?? 'sandbox'
-const SDK_URL     = SQ_ENV === 'production'
-  ? 'https://web.squarecdn.com/v1/square.js'
-  : 'https://sandbox.web.squarecdn.com/v1/square.js'
-const DEPOSIT     = Number(process.env.NEXT_PUBLIC_DEPOSIT_AMOUNT ?? '25')
+const DEPOSIT = Number(process.env.NEXT_PUBLIC_DEPOSIT_AMOUNT ?? '25')
 
 type Step = 1 | 2 | 3 | 4
 
@@ -61,14 +41,13 @@ function isSunday(d: string) {
   return new Date(y, mo - 1, day).getDay() === 0
 }
 
-// Category starting prices
 const categoryFrom: Record<string, number> = {
   manicures: 22, pedicures: 25, combinations: 110,
   acrylics: 40, facials: 55, waxing: 10,
 }
 
 export default function BookPage() {
-  const router  = useRouter()
+  const router = useRouter()
   const [step, setStep] = useState<Step>(1)
 
   // Step 1 — service
@@ -85,66 +64,18 @@ export default function BookPage() {
   const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
 
-  // Step 4 — Square
-  const [sqReady, setSqReady]   = useState(false)
-  const [sqError, setSqError]   = useState<string | null>(null)
-  const cardRef                  = useRef<Awaited<ReturnType<Awaited<ReturnType<NonNullable<Window['Square']>['payments']>>['card']>> | null>(null)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState<string | null>(null)
-  const [success, setSuccess]   = useState(false)
-
-  // Load Square SDK when entering step 4
-  useEffect(() => {
-    if (step !== 4) return
-    if (cardRef.current) return
-    const existing = document.getElementById('square-sdk')
-    if (existing) { initSquare(); return }
-    const script = document.createElement('script')
-    script.id  = 'square-sdk'
-    script.src = SDK_URL
-    script.onload  = () => initSquare()
-    script.onerror = () => setSqError('Payment form failed to load — please refresh.')
-    document.head.appendChild(script)
-  }, [step])
-
-  async function initSquare() {
-    try {
-      if (!window.Square) { setSqError('Payment system unavailable.'); return }
-      const payments = await window.Square.payments(APP_ID, LOCATION_ID)
-      const card = await payments.card({
-        style: {
-          '.input-container':          { borderColor: '#d1c9b8', borderRadius: '4px' },
-          '.input-container.is-focus': { borderColor: '#b8972a' },
-          'input':                     { color: '#111111', fontFamily: 'sans-serif', fontSize: '15px' },
-          '.input-container.is-error': { borderColor: '#dc2626' },
-          '.message-text':             { color: '#dc2626' },
-        },
-      })
-      await card.attach('#sq-card')
-      cardRef.current = card
-      setSqReady(true)
-    } catch (e) {
-      setSqError('Could not load payment form — please refresh.')
-      console.error(e)
-    }
-  }
+  // Step 4 — payment
+  const [paying, setPaying] = useState(false)
+  const [error, setError]   = useState<string | null>(null)
 
   async function handlePay() {
-    if (!cardRef.current) return
     setError(null)
-    setLoading(true)
+    setPaying(true)
     try {
-      const result = await cardRef.current.tokenize()
-      if (result.status !== 'OK' || !result.token) {
-        setError(result.errors?.[0]?.message ?? 'Card error — please check your details.')
-        setLoading(false)
-        return
-      }
-      const res = await fetch('/api/book', {
+      const res = await fetch('/api/book/link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sourceId:      result.token,
           customerName:  name.trim(),
           customerEmail: email.trim(),
           customerPhone: phone.trim(),
@@ -155,65 +86,16 @@ export default function BookPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Booking failed.')
-      setSuccess(true)
+      if (!res.ok) throw new Error(data.error ?? 'Could not create payment link.')
+      window.location.href = data.url
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
+      setPaying(false)
     }
   }
 
   const slots = timeSlots()
   const inputClass = 'w-full bg-[#111] border border-[#2a2a2a] rounded-sm px-4 py-3 text-offwhite text-sm font-sans placeholder:text-offwhite/25 focus:outline-none focus:border-gold/50 transition-colors duration-200'
-
-  // ── Success screen ──────────────────────────────────────────────────────────
-  if (success) {
-    return (
-      <div className="min-h-screen bg-charcoal flex items-center justify-center px-6">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full text-center flex flex-col items-center gap-8"
-        >
-          <div className="w-20 h-20 rounded-full border border-gold/30 flex items-center justify-center">
-            <span className="font-serif text-gold text-3xl">✓</span>
-          </div>
-          <div>
-            <h1 className="font-serif text-3xl text-offwhite mb-3">You&apos;re Booked</h1>
-            <p className="text-sm font-sans text-offwhite/50 leading-relaxed">
-              Your ${DEPOSIT} deposit has been charged and your appointment is confirmed.
-              A confirmation email with your calendar invite is on its way to <span className="text-offwhite/70">{email}</span>.
-            </p>
-          </div>
-          <div className="w-full glass-card border border-border rounded-sm p-6 flex flex-col gap-3 text-left">
-            <div className="flex justify-between text-sm font-sans">
-              <span className="text-offwhite/40">Service</span>
-              <span className="text-offwhite">{selectedService?.name}</span>
-            </div>
-            <div className="flex justify-between text-sm font-sans">
-              <span className="text-offwhite/40">Date</span>
-              <span className="text-offwhite">{fmtDate(date)}</span>
-            </div>
-            {time && (
-              <div className="flex justify-between text-sm font-sans">
-                <span className="text-offwhite/40">Time</span>
-                <span className="text-offwhite">{slots.find(s => s.value === time)?.label}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-sm font-sans border-t border-border/40 pt-3 mt-1">
-              <span className="text-offwhite/40">Deposit Paid</span>
-              <span className="text-gold font-serif">${DEPOSIT}.00</span>
-            </div>
-          </div>
-          <button onClick={() => router.push('/')}
-            className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200">
-            ← Back to Home
-          </button>
-        </motion.div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-charcoal">
@@ -233,8 +115,8 @@ export default function BookPage() {
         <div className="max-w-2xl mx-auto flex items-center gap-0">
           {STEPS.map((label, i) => {
             const n = (i + 1) as Step
-            const active  = step === n
-            const done    = step > n
+            const active = step === n
+            const done   = step > n
             return (
               <div key={label} className="flex items-center flex-1 last:flex-none">
                 <div className="flex items-center gap-2">
@@ -276,13 +158,12 @@ export default function BookPage() {
 
               <div className="flex flex-col gap-3">
                 {serviceCategories.map(cat => {
-                  const isOpen     = expandedCat === cat.id
+                  const isOpen      = expandedCat === cat.id
                   const hasSelected = selectedService && cat.packages.some(p => p.name === selectedService.name)
                   return (
                     <div key={cat.id} className={`border rounded-sm overflow-hidden transition-colors duration-200 ${
                       hasSelected ? 'border-gold/40' : isOpen ? 'border-border' : 'border-border/50'
                     }`}>
-                      {/* Category header */}
                       <button
                         onClick={() => setExpandedCat(isOpen ? null : cat.id)}
                         className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left bg-charcoal hover:bg-[#161616] transition-colors duration-150"
@@ -301,7 +182,6 @@ export default function BookPage() {
                         </div>
                       </button>
 
-                      {/* Services */}
                       <AnimatePresence>
                         {isOpen && (
                           <motion.div
@@ -370,7 +250,6 @@ export default function BookPage() {
                 <p className="text-sm font-sans text-offwhite/40 mt-2">{selectedService?.name}</p>
               </div>
 
-              {/* Date */}
               <div className="glass-card border border-border rounded-sm p-6 flex flex-col gap-4">
                 <p className="text-[10px] tracking-widest uppercase text-offwhite/30 font-sans">Date</p>
                 <input
@@ -390,7 +269,6 @@ export default function BookPage() {
                 )}
               </div>
 
-              {/* Time slots */}
               <div className="glass-card border border-border rounded-sm p-6 flex flex-col gap-4">
                 <p className="text-[10px] tracking-widest uppercase text-offwhite/30 font-sans">Preferred Time</p>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -501,7 +379,7 @@ export default function BookPage() {
               <div>
                 <p className="text-[10px] tracking-[0.3em] uppercase text-gold/50 font-sans mb-2">Step 4 of 4</p>
                 <h2 className="font-serif text-3xl text-offwhite">Confirm & Pay</h2>
-                <p className="text-sm font-sans text-offwhite/40 mt-2">Review your booking and enter your card to secure it.</p>
+                <p className="text-sm font-sans text-offwhite/40 mt-2">Review your booking, then pay securely through Square.</p>
               </div>
 
               {/* Summary */}
@@ -533,23 +411,6 @@ export default function BookPage() {
                 </div>
               </div>
 
-              {/* Square card */}
-              <div className="flex flex-col gap-3">
-                <p className="text-[10px] tracking-widest uppercase text-offwhite/40 font-sans">Card Details</p>
-                <div className="bg-white rounded-md p-4 min-h-[120px]">
-                  {sqError ? (
-                    <p className="text-sm font-sans text-red-600 pt-2">{sqError}</p>
-                  ) : (
-                    <>
-                      <div id="sq-card" className={`transition-opacity duration-300 ${sqReady ? 'opacity-100' : 'opacity-0'}`} />
-                      {!sqReady && <div className="h-[80px] bg-gray-100 rounded animate-pulse" />}
-                    </>
-                  )}
-                </div>
-                <p className="text-[10px] font-sans text-offwhite/25 text-right">Secured by Square</p>
-              </div>
-
-              {/* Error */}
               <AnimatePresence>
                 {error && (
                   <motion.p
@@ -564,11 +425,14 @@ export default function BookPage() {
               <div className="flex flex-col gap-4 pb-8">
                 <button
                   onClick={handlePay}
-                  disabled={loading || !sqReady || !!sqError}
-                  className="w-full py-4 bg-gold text-charcoal text-sm tracking-widest uppercase font-sans hover:bg-gold-light transition-colors duration-200 disabled:opacity-40 rounded-sm"
+                  disabled={paying}
+                  className="w-full py-4 bg-gold text-charcoal text-sm tracking-widest uppercase font-sans hover:bg-gold-light transition-colors duration-200 disabled:opacity-50 rounded-sm"
                 >
-                  {loading ? 'Processing…' : `Pay $${DEPOSIT} Deposit & Confirm`}
+                  {paying ? 'Redirecting to checkout…' : `Pay $${DEPOSIT} Deposit & Confirm`}
                 </button>
+                <p className="text-[10px] font-sans text-offwhite/25 text-center">
+                  You&apos;ll be taken to Square&apos;s secure checkout — your deposit is applied to your service total
+                </p>
                 <button onClick={() => setStep(3)}
                   className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200 text-center">
                   ← Back
