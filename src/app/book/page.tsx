@@ -113,10 +113,11 @@ export default function BookPage() {
       const payments = await window.Square.payments(APP_ID, LOCATION_ID)
       const card = await payments.card({
         style: {
-          '.input-container':          { borderColor: '#2a2a2a', borderRadius: '2px' },
+          '.input-container':          { borderColor: '#d1c9b8', borderRadius: '4px' },
           '.input-container.is-focus': { borderColor: '#b8972a' },
-          'input':                     { color: '#f5f0e8', fontFamily: 'inherit' },
-          '.input-container.is-error': { borderColor: '#f87171' },
+          'input':                     { color: '#111111', fontFamily: 'sans-serif', fontSize: '15px' },
+          '.input-container.is-error': { borderColor: '#dc2626' },
+          '.message-text':             { color: '#dc2626' },
         },
       })
       await card.attach('#sq-card')
@@ -495,54 +496,57 @@ export default function BookPage() {
             <motion.div key="step4"
               initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22 }}
-              className="flex flex-col gap-6"
+              className="flex flex-col gap-8"
             >
               <div>
                 <p className="text-[10px] tracking-[0.3em] uppercase text-gold/50 font-sans mb-2">Step 4 of 4</p>
                 <h2 className="font-serif text-3xl text-offwhite">Confirm & Pay</h2>
+                <p className="text-sm font-sans text-offwhite/40 mt-2">Review your booking and enter your card to secure it.</p>
               </div>
 
               {/* Summary */}
-              <div className="glass-card border border-gold/20 rounded-sm p-6 flex flex-col gap-3">
-                <p className="text-[10px] tracking-widest uppercase text-offwhite/30 font-sans mb-1">Booking Summary</p>
-                <div className="flex justify-between text-sm font-sans">
-                  <span className="text-offwhite/50">Service</span>
+              <div className="border border-gold/20 rounded-sm divide-y divide-border/30">
+                <div className="px-5 py-3 flex justify-between text-sm font-sans">
+                  <span className="text-offwhite/40">Service</span>
                   <span className="text-offwhite font-serif">{selectedService?.name}</span>
                 </div>
-                <div className="flex justify-between text-sm font-sans">
-                  <span className="text-offwhite/50">Date</span>
+                <div className="px-5 py-3 flex justify-between text-sm font-sans">
+                  <span className="text-offwhite/40">Date</span>
                   <span className="text-offwhite">{fmtDate(date)}</span>
                 </div>
-                <div className="flex justify-between text-sm font-sans">
-                  <span className="text-offwhite/50">Time</span>
+                <div className="px-5 py-3 flex justify-between text-sm font-sans">
+                  <span className="text-offwhite/40">Time</span>
                   <span className="text-offwhite">
                     {time ? slots.find(s => s.value === time)?.label : 'Flexible'}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm font-sans">
-                  <span className="text-offwhite/50">Name</span>
+                <div className="px-5 py-3 flex justify-between text-sm font-sans">
+                  <span className="text-offwhite/40">Name</span>
                   <span className="text-offwhite">{name}</span>
                 </div>
-                <div className="border-t border-border/40 pt-3 mt-1 flex justify-between">
+                <div className="px-5 py-4 flex justify-between items-center bg-gold/5">
                   <div>
-                    <p className="text-sm font-sans text-offwhite/50">Deposit Due Today</p>
-                    <p className="text-[11px] font-sans text-offwhite/25 mt-0.5">Applied to your service total</p>
+                    <p className="text-sm font-sans text-offwhite/60">Deposit Due Today</p>
+                    <p className="text-[11px] font-sans text-offwhite/30 mt-0.5">Applied to your service total</p>
                   </div>
                   <p className="font-serif text-2xl text-gold">${DEPOSIT}.00</p>
                 </div>
               </div>
 
               {/* Square card */}
-              <div className="glass-card border border-border rounded-sm p-6 flex flex-col gap-4">
-                <p className="text-[10px] tracking-widest uppercase text-offwhite/30 font-sans">Card Details</p>
-                {sqError ? (
-                  <p className="text-sm font-sans text-red-400">{sqError}</p>
-                ) : (
-                  <>
-                    <div id="sq-card" className={`min-h-[90px] transition-opacity duration-300 ${sqReady ? 'opacity-100' : 'opacity-0'}`} />
-                    {!sqReady && <div className="h-[90px] bg-border/10 rounded-sm animate-pulse" />}
-                  </>
-                )}
+              <div className="flex flex-col gap-3">
+                <p className="text-[10px] tracking-widest uppercase text-offwhite/40 font-sans">Card Details</p>
+                <div className="bg-white rounded-md p-4 min-h-[120px]">
+                  {sqError ? (
+                    <p className="text-sm font-sans text-red-600 pt-2">{sqError}</p>
+                  ) : (
+                    <>
+                      <div id="sq-card" className={`transition-opacity duration-300 ${sqReady ? 'opacity-100' : 'opacity-0'}`} />
+                      {!sqReady && <div className="h-[80px] bg-gray-100 rounded animate-pulse" />}
+                    </>
+                  )}
+                </div>
+                <p className="text-[10px] font-sans text-offwhite/25 text-right">Secured by Square</p>
               </div>
 
               {/* Error */}
@@ -550,14 +554,14 @@ export default function BookPage() {
                 {error && (
                   <motion.p
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="text-sm font-sans text-red-400 text-center px-4"
+                    className="text-sm font-sans text-red-400 text-center -mt-4"
                   >
                     {error}
                   </motion.p>
                 )}
               </AnimatePresence>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4 pb-8">
                 <button
                   onClick={handlePay}
                   disabled={loading || !sqReady || !!sqError}
@@ -565,15 +569,10 @@ export default function BookPage() {
                 >
                   {loading ? 'Processing…' : `Pay $${DEPOSIT} Deposit & Confirm`}
                 </button>
-                <div className="flex justify-between items-center">
-                  <button onClick={() => setStep(3)}
-                    className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200">
-                    ← Back
-                  </button>
-                  <p className="text-[10px] font-sans text-offwhite/20">
-                    Secured by Square
-                  </p>
-                </div>
+                <button onClick={() => setStep(3)}
+                  className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200 text-center">
+                  ← Back
+                </button>
               </div>
             </motion.div>
           )}
