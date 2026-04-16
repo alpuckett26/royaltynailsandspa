@@ -104,6 +104,22 @@ function getCategoryId(serviceName: string) {
   return null
 }
 
+// When a mani is selected suggest a pedi bundle and vice versa
+const BUMP: Record<string, { label: string; addService: string; addPrice: number; bundlePrice: number }> = {
+  manicures: {
+    label:      'Add a Pedicure',
+    addService: 'Regular Pedicure',
+    addPrice:   25,
+    bundlePrice: 15,
+  },
+  pedicures: {
+    label:      'Add a Manicure',
+    addService: 'Regular Manicure',
+    addPrice:   22,
+    bundlePrice: 12,
+  },
+}
+
 export default function BookPage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>(1)
@@ -124,6 +140,7 @@ export default function BookPage() {
 
   // Add-ons
   const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set())
+  const [bumpAccepted, setBumpAccepted] = useState(false)
 
   // Pre-select service from URL param
   useEffect(() => {
@@ -209,6 +226,13 @@ export default function BookPage() {
           time:          time || undefined,
           notes: [
             notes.trim(),
+            (() => {
+              const catId = getCategoryId(selectedService!.name)
+              const bump  = catId ? BUMP[catId] : null
+              return bumpAccepted && bump
+                ? `Bundle offer: ${bump.addService} added at $${bump.bundlePrice} (save $10)`
+                : ''
+            })(),
             selectedAddOns.size > 0
               ? `Add-ons: ${Array.from(selectedAddOns).map(n => {
                   const catId = getCategoryId(selectedService!.name)
@@ -408,6 +432,51 @@ export default function BookPage() {
                   )
                 })}
               </div>
+
+              {/* Bundle bump offer */}
+              <AnimatePresence>
+                {selectedService && (() => {
+                  const catId = getCategoryId(selectedService.name)
+                  const bump  = catId ? BUMP[catId] : null
+                  if (!bump) return null
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.25 }}
+                      className={`rounded-sm border p-4 flex flex-col gap-3 ${bumpAccepted ? 'border-gold/40 bg-gold/5' : 'border-gold/20 bg-[#111]'}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[9px] tracking-widest uppercase text-gold/60 font-sans mb-1">Bundle & Save $10</p>
+                          <p className="font-serif text-base text-offwhite">
+                            {bump.label} to this appointment
+                          </p>
+                          <p className="text-xs font-sans text-offwhite/40 mt-0.5">
+                            {bump.addService} — <span className="line-through">${bump.addPrice}</span>{' '}
+                            <span className="text-gold">${bump.bundlePrice}</span> when booked together
+                          </p>
+                        </div>
+                        {bumpAccepted
+                          ? <span className="text-[9px] tracking-widest uppercase text-gold font-sans shrink-0 mt-1">✓ Added</span>
+                          : <button
+                              onClick={() => setBumpAccepted(true)}
+                              className="shrink-0 px-4 py-2 bg-gold text-charcoal text-[10px] tracking-widest uppercase font-sans rounded-sm hover:bg-gold-light transition-colors duration-150"
+                            >
+                              Add it
+                            </button>
+                        }
+                      </div>
+                      {bumpAccepted && (
+                        <p className="text-[10px] font-sans text-offwhite/30">
+                          Mention this offer at check-in — technician will honor the ${bump.bundlePrice} price.
+                        </p>
+                      )}
+                    </motion.div>
+                  )
+                })()}
+              </AnimatePresence>
 
               <div className="flex justify-end pt-2">
                 <button
