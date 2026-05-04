@@ -111,6 +111,54 @@ create index if not exists shifts_date_idx        on shifts(shift_date);
 alter table shifts enable row level security;
 -- All shift operations go through API routes using the service role key
 
+-- ── CUSTOMER NOTES ───────────────────────────────────────────────────────────
+
+create table if not exists customer_notes (
+  id             uuid primary key default uuid_generate_v4(),
+  customer_email text not null,
+  note           text not null,
+  created_by     text not null,
+  created_at     timestamptz not null default now()
+);
+
+create index if not exists customer_notes_email_idx on customer_notes(customer_email);
+
+alter table customer_notes enable row level security;
+-- All customer note operations go through API routes using the service role key
+
+-- ── SPECIALS ──────────────────────────────────────────────────────────────────
+
+create table if not exists specials (
+  id           uuid primary key default uuid_generate_v4(),
+  eyebrow      text,
+  title        text not null,
+  description  text not null,
+  offer        text not null,
+  badge        text,
+  valid_through date,
+  active       boolean not null default true,
+  sort_order   integer not null default 0,
+  created_at   timestamptz not null default now()
+);
+
+alter table specials enable row level security;
+-- Public can read active specials (shown on home page)
+create policy "Public can read active specials"
+  on specials for select using (active = true);
+
+-- ── BUSINESS SETTINGS ────────────────────────────────────────────────────────
+
+create table if not exists business_settings (
+  key        text primary key,
+  value      text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table business_settings enable row level security;
+-- Public can read all settings (phone, address, hours shown on site)
+create policy "Public can read business settings"
+  on business_settings for select using (true);
+
 -- ── INITIAL SETUP ─────────────────────────────────────────────────────────────
 -- To add your first employees, use the /employee/admin page after deploying,
 -- or run the following SQL with your real bcrypt-hashed PINs.

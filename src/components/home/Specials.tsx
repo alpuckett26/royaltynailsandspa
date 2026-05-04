@@ -1,12 +1,46 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { StaggerContainer, StaggerItem } from '@/components/ui/AnimatedSection'
 import { Button } from '@/components/ui/Button'
-import { specials } from '@/lib/content'
+import { specials as staticSpecials } from '@/lib/content'
+
+type DisplaySpecial = {
+  id: string
+  eyebrow?: string | null
+  title: string
+  description: string
+  highlight: string
+  badge?: string | null
+  validThrough?: string | null
+}
 
 export function Specials() {
+  const [specials, setSpecials] = useState<DisplaySpecial[]>(
+    staticSpecials.map(s => ({
+      id: s.id, eyebrow: s.eyebrow, title: s.title,
+      description: s.description, highlight: s.highlight,
+      badge: s.badge, validThrough: s.validThrough,
+    }))
+  )
+
+  useEffect(() => {
+    fetch('/api/admin/specials')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.specials?.length) {
+          setSpecials(data.specials.map((s: { id: string; eyebrow: string | null; title: string; description: string; offer: string; badge: string | null; valid_through: string | null }) => ({
+            id: s.id, eyebrow: s.eyebrow, title: s.title,
+            description: s.description, highlight: s.offer,
+            badge: s.badge, validThrough: s.valid_through,
+          })))
+        }
+      })
+      .catch(() => { /* keep static fallback */ })
+  }, [])
+
   if (!specials || specials.length === 0) return null
 
   return (
