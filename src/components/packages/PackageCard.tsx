@@ -108,6 +108,7 @@ export function PackageCard({ pkg, categoryName, delay = 0 }: PackageCardProps) 
         variant={pkg.featured ? 'primary' : 'gold-outline'}
         size="sm"
         className="w-full"
+        service={pkg.name}
       >
         Book This Service
       </BookNowButton>
