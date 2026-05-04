@@ -23,17 +23,36 @@ function formatHours(minutes: number) {
   return `${h}h ${m}m`
 }
 
+// Groups entries into Sun–Sat pay weeks and returns totals per week
+function getWeeklyBreakdown(entries: Entry[]): Array<{ label: string; minutes: number }> {
+  const weekMap = new Map<string, number>()
+  for (const entry of entries) {
+    if (!entry.clock_out) continue
+    const d = new Date(entry.clock_in)
+    // Roll back to Sunday
+    const sun = new Date(d)
+    sun.setDate(d.getDate() - d.getDay())
+    const sat = new Date(sun)
+    sat.setDate(sun.getDate() + 6)
+    const label = `${sun.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${sat.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    const ms = new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime()
+    weekMap.set(label, (weekMap.get(label) ?? 0) + Math.round(ms / 60000))
+  }
+  return Array.from(weekMap.entries())
+    .map(([label, minutes]) => ({ label, minutes }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+}
+
 function getRangeDates(range: Range): { from: string; to: string } {
   const now = new Date()
 
   if (range === 'week') {
     const day = now.getDay() // 0=Sun, 1=Mon … 6=Sat
-    const diffToMon = day === 0 ? -6 : 1 - day
     const from = new Date(now)
-    from.setDate(now.getDate() + diffToMon)
+    from.setDate(now.getDate() - day) // back to Sunday
     from.setHours(0, 0, 0, 0)
     const to = new Date(from)
-    to.setDate(from.getDate() + 6) // Sunday
+    to.setDate(from.getDate() + 6) // Saturday
     to.setHours(23, 59, 59, 999)
     return { from: from.toISOString(), to: to.toISOString() }
   }
@@ -162,6 +181,12 @@ export default function AdminPage() {
             Schedule →
           </button>
           <button
+            onClick={() => router.push('/employee/customers')}
+            className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
+          >
+            Customers →
+          </button>
+          <button
             onClick={() => router.push('/employee/dashboard')}
             className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
           >
@@ -244,8 +269,28 @@ export default function AdminPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-2"
+                  className="mt-2 flex flex-col gap-2"
                 >
+                  {/* Weekly breakdown (shown when viewing more than one week) */}
+                  {range !== 'week' && (() => {
+                    const weeks = getWeeklyBreakdown(s.entries)
+                    if (weeks.length <= 1) return null
+                    return (
+                      <div className="glass-card border border-border/50 rounded-sm px-5 py-4">
+                        <p className="text-[10px] tracking-widest uppercase text-gold/40 font-sans mb-3">
+                          Week-by-Week
+                        </p>
+                        <div className="flex flex-col gap-1.5">
+                          {weeks.map((w) => (
+                            <div key={w.label} className="flex items-center justify-between">
+                              <span className="text-xs font-sans text-offwhite/50">{w.label}</span>
+                              <span className="font-serif text-sm text-gold">{formatHours(w.minutes)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                   <HoursTable
                     entries={s.entries}
                     totalMinutes={s.totalMinutes}

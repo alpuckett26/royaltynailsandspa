@@ -53,6 +53,64 @@ create policy "Public can read active employee names"
 -- Time entries are only accessible via the service role key (API routes)
 -- No anon policies needed for time_entries
 
+-- ── APPOINTMENTS ──────────────────────────────────────────────────────────────
+
+create table if not exists appointments (
+  id               uuid primary key default uuid_generate_v4(),
+  customer_name    text not null,
+  customer_email   text,
+  customer_phone   text,
+  service          text not null,
+  appointment_date date not null,
+  appointment_time text not null,       -- e.g. "2:30 PM"
+  notes            text,
+  checked_in       boolean not null default false,
+  created_at       timestamptz not null default now()
+);
+
+create index if not exists appointments_date_idx on appointments(appointment_date);
+
+alter table appointments enable row level security;
+-- All appointment operations go through API routes using the service role key
+
+-- ── CHECK-IN QUEUE ────────────────────────────────────────────────────────────
+
+create table if not exists checkin_queue (
+  id             uuid primary key default uuid_generate_v4(),
+  customer_name  text not null,
+  service        text not null,
+  notes          text,
+  status         text not null default 'waiting'
+                   check (status in ('waiting', 'served')),
+  served_at      timestamptz,
+  served_by_name text,
+  created_at     timestamptz not null default now()
+);
+
+create index if not exists checkin_queue_status_idx     on checkin_queue(status);
+create index if not exists checkin_queue_created_at_idx on checkin_queue(created_at);
+
+alter table checkin_queue enable row level security;
+-- All queue operations go through API routes using the service role key
+
+-- ── SHIFTS ────────────────────────────────────────────────────────────────────
+
+create table if not exists shifts (
+  id          uuid primary key default uuid_generate_v4(),
+  employee_id uuid not null references employees(id) on delete cascade,
+  shift_date  date not null,
+  start_time  text not null,            -- e.g. "9:00 AM"
+  end_time    text not null,            -- e.g. "5:00 PM"
+  notes       text,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists shifts_employee_id_idx on shifts(employee_id);
+create index if not exists shifts_date_idx        on shifts(shift_date);
+
+alter table shifts enable row level security;
+-- All shift operations go through API routes using the service role key
+
 -- ── INITIAL SETUP ─────────────────────────────────────────────────────────────
 -- To add your first employees, use the /employee/admin page after deploying,
 -- or run the following SQL with your real bcrypt-hashed PINs.

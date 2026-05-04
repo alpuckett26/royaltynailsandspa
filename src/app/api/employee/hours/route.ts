@@ -11,12 +11,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const employeeId = searchParams.get('employeeId')
 
-    // Default range: current week (Mon–Sun)
+    // Default range: current week (Sun–Sat)
     const now = new Date()
     const defaultFrom = new Date(now)
     const day = now.getDay() // 0=Sun
-    const diffToMon = day === 0 ? -6 : 1 - day
-    defaultFrom.setDate(now.getDate() + diffToMon)
+    defaultFrom.setDate(now.getDate() - day) // back to Sunday
     defaultFrom.setHours(0, 0, 0, 0)
 
     const from = searchParams.get('from') ?? defaultFrom.toISOString()
