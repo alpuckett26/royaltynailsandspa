@@ -58,6 +58,7 @@ export default function AdminStaffPage() {
   const [range, setRange] = useState<Range>('week')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [deactivating, setDeactivating] = useState<string | null>(null)
+  const [clockingOut, setClockingOut] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [newName, setNewName] = useState('')
@@ -100,6 +101,20 @@ export default function AdminStaffPage() {
       }
     } catch { /* silent */ }
     finally { setDeactivating(null) }
+  }
+
+  const handleClockOut = async (employeeId: string) => {
+    if (!admin || clockingOut) return
+    setClockingOut(employeeId)
+    try {
+      await fetch('/api/employee/clock-out', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId }),
+      })
+      fetchHours(range)
+    } catch { /* silent */ }
+    finally { setClockingOut(null) }
   }
 
   const handleCreateEmployee = async (e: React.FormEvent) => {
@@ -171,10 +186,19 @@ export default function AdminStaffPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="text-right">
                     <p className="font-serif text-xl text-gold">{formatHours(s.totalMinutes)}</p>
                   </div>
+                  {s.entries.some(e => e.clock_out === null) && (
+                    <button
+                      onClick={ev => { ev.stopPropagation(); handleClockOut(s.employeeId) }}
+                      disabled={clockingOut === s.employeeId}
+                      className="px-3 py-1.5 border border-gold/30 text-gold/60 text-[10px] tracking-widest uppercase font-sans hover:text-gold hover:border-gold/60 rounded-sm transition-all duration-150 disabled:opacity-30"
+                    >
+                      {clockingOut === s.employeeId ? '…' : 'Clock Out'}
+                    </button>
+                  )}
                   <button
                     onClick={e => { e.stopPropagation(); handleDeactivate(s.employeeId) }}
                     disabled={deactivating === s.employeeId}
