@@ -216,14 +216,31 @@ export default function FeedbackPage() {
                         className={`${ic} resize-none`} />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className={labelClass}>Photo <span className="text-offwhite/25 normal-case tracking-normal">— optional</span></label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={e => setFPhoto(e.target.files?.[0] ?? null)}
-                        className="text-sm font-sans text-offwhite/50 file:mr-3 file:px-4 file:py-2 file:bg-gold/10 file:border file:border-gold/30 file:text-gold file:text-xs file:tracking-widest file:uppercase file:font-sans file:cursor-pointer hover:file:bg-gold/20 file:transition-colors file:duration-200"
-                      />
-                      {fPhoto && <p className="text-xs font-sans text-offwhite/30">{fPhoto.name}</p>}
+                      <label className={labelClass}>Photo <span className="text-offwhite/25 normal-case tracking-normal">— optional, max 5 MB</span></label>
+                      {fPhoto ? (
+                        <div className="flex items-center gap-3 bg-white/5 border border-border rounded-sm px-4 py-3">
+                          <span className="text-xs font-sans text-offwhite/60 flex-1 truncate">{fPhoto.name}</span>
+                          <span className="text-[10px] font-sans text-offwhite/30">{(fPhoto.size / 1024 / 1024).toFixed(1)} MB</span>
+                          <button type="button" onClick={() => setFPhoto(null)}
+                            className="text-offwhite/30 hover:text-red-400 text-sm transition-colors duration-150 leading-none ml-1">✕</button>
+                        </div>
+                      ) : (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => {
+                            const f = e.target.files?.[0] ?? null
+                            if (f && f.size > 5 * 1024 * 1024) {
+                              setError('Photo must be under 5 MB.')
+                              e.target.value = ''
+                              return
+                            }
+                            setError(null)
+                            setFPhoto(f)
+                          }}
+                          className="text-sm font-sans text-offwhite/50 file:mr-3 file:px-4 file:py-2 file:bg-gold/10 file:border file:border-gold/30 file:text-gold file:text-xs file:tracking-widest file:uppercase file:font-sans file:cursor-pointer hover:file:bg-gold/20 file:transition-colors file:duration-200"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>

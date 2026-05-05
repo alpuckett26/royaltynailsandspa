@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     console.error('[complaints upload]', error)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    return NextResponse.json({ error: error.message ?? 'Upload failed' }, { status: 500 })
   }
 
   const { data: { publicUrl } } = supabase.storage.from('complaint-photos').getPublicUrl(path)
