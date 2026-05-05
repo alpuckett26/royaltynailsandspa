@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleSignOut = () => {
     sessionStorage.removeItem('rns_employee')
-    router.push('/employee')
+    router.push('/admin')
   }
 
   if (!admin) return null
