@@ -248,35 +248,6 @@ export default function SchedulePage() {
         })}
       </div>
 
-      {/* Schedule links */}
-      {employees.length > 0 && (
-        <div className="border-t border-border/40 pt-6">
-          <div className="flex items-center gap-3 mb-4">
-            <p className="text-[10px] tracking-[0.25em] uppercase text-gold/50 font-sans">Schedule Links</p>
-            <p className="text-[10px] font-sans text-offwhite/25">— share with each employee so they can view their shifts</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {employees.map(emp => {
-              const link = `${typeof window !== 'undefined' ? window.location.origin : ''}/schedule/${emp.id}`
-              return (
-                <div key={emp.id} className="glass-card border border-border rounded-sm px-4 py-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-serif text-sm text-offwhite">{emp.name}</p>
-                    <p className="text-[10px] font-sans text-offwhite/25 truncate max-w-[180px]">/schedule/{emp.id.slice(0, 8)}…</p>
-                  </div>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(link)}
-                    className="text-[10px] tracking-widest uppercase text-gold/50 hover:text-gold font-sans transition-colors duration-200 shrink-0"
-                  >
-                    Copy
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Day modal */}
       <AnimatePresence>
         {modalDate && (
