@@ -25,13 +25,15 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from('time_entries')
-      .select('*, employees(id, name, role)')
+      .select('*, employees!inner(id, name, role, active)')
       .gte('clock_in', from)
       .lte('clock_in', to)
       .order('clock_in', { ascending: false })
 
     if (employeeId) {
       query = query.eq('employee_id', employeeId)
+    } else {
+      query = query.eq('employees.active', true)
     }
 
     const { data: entries, error } = await query
