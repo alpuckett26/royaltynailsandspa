@@ -156,6 +156,12 @@ export function Footer() {
               Rowlett, Texas
             </p>
             <Link
+              href="/checkin"
+              className="text-offwhite/15 hover:text-offwhite/40 text-xs font-sans transition-colors duration-300"
+            >
+              Check In
+            </Link>
+            <Link
               href="/employee"
               className="text-offwhite/15 hover:text-offwhite/40 text-xs font-sans transition-colors duration-300"
             >
