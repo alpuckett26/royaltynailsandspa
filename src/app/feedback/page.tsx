@@ -77,7 +77,7 @@ export default function FeedbackPage() {
       <div className="max-w-2xl mx-auto px-6 lg:px-8">
 
         <div className="flex justify-end mb-6">
-          <a href="/admin/complaints"
+          <a href="/admin"
             className="text-[10px] tracking-widest uppercase text-offwhite/20 hover:text-offwhite/50 font-sans transition-colors duration-200">
             ← Admin Panel
           </a>
