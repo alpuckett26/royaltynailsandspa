@@ -15,6 +15,7 @@ const NAV = [
   { label: 'Specials',     href: '/admin/specials',      icon: '◆' },
   { label: 'Complaints',   href: '/admin/complaints',    icon: '◌' },
   { label: 'Settings',     href: '/admin/settings',      icon: '◈' },
+  { label: 'Guide',        href: '/admin/guide',         icon: '?' },
 ]
 
 const COMING_SOON = [
