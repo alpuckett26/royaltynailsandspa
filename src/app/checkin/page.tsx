@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { serviceCategories } from '@/lib/content'
+import { PINPad } from '@/components/employee/PINPad'
 
 type Step = 'welcome' | 'name' | 'service' | 'confirm'
 
@@ -52,9 +53,11 @@ function todayDate() {
 
 // ── Queue panel ───────────────────────────────────────────────────────────────
 function QueuePanel() {
-  const [queue, setQueue]       = useState<QueueEntry[]>([])
-  const [servingId, setServingId] = useState<string | null>(null)
-  const [tick, setTick]         = useState(0)
+  const [queue, setQueue]             = useState<QueueEntry[]>([])
+  const [tick, setTick]               = useState(0)
+  const [pinPromptFor, setPinPromptFor] = useState<QueueEntry | null>(null)
+  const [pinLoading, setPinLoading]   = useState(false)
+  const [pinError, setPinError]       = useState<string | null>(null)
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -73,63 +76,121 @@ function QueuePanel() {
 
   void tick
 
-  async function handleServed(id: string) {
-    if (servingId) return
-    setServingId(id)
+  function openPin(entry: QueueEntry) {
+    setPinError(null)
+    setPinPromptFor(entry)
+  }
+
+  function closePin() {
+    setPinPromptFor(null)
+    setPinError(null)
+  }
+
+  async function handlePIN(pin: string) {
+    if (!pinPromptFor) return
+    setPinLoading(true)
+    setPinError(null)
     try {
+      const lookupRes = await fetch('/api/employee/pin-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      })
+      const lookupData = await lookupRes.json()
+      if (!lookupRes.ok) {
+        setPinError(lookupData.error ?? 'PIN not recognized')
+        return
+      }
       await fetch('/api/checkin', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: pinPromptFor.id, employeeId: lookupData.employee.id }),
       })
-      setQueue(q => q.filter(e => e.id !== id))
-    } catch { /* silent */ }
-    finally { setServingId(null) }
+      setQueue(q => q.filter(e => e.id !== pinPromptFor.id))
+      closePin()
+    } catch {
+      setPinError('Connection error. Please try again.')
+    } finally {
+      setPinLoading(false)
+    }
   }
 
   return (
-    <div className="flex flex-col gap-3 h-full">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] tracking-[0.3em] uppercase text-[#C6A15B]/40 font-sans">Queue</p>
-        {queue.length > 0 && (
-          <span className="px-2 py-0.5 rounded-full bg-[#C6A15B]/10 border border-[#C6A15B]/25 text-[#C6A15B] text-xs font-sans">
-            {queue.length}
-          </span>
+    <>
+      {/* PIN overlay */}
+      <AnimatePresence>
+        {pinPromptFor && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-[#1a0a2e]/95 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[#1a0a2e] border border-white/15 rounded-sm p-8 w-full max-w-xs"
+            >
+              <div className="mb-6 text-center">
+                <p className="text-[10px] tracking-[0.25em] uppercase text-white/30 font-sans mb-1">Serving</p>
+                <p className="font-serif text-xl text-white">{pinPromptFor.customer_name}</p>
+                <p className="text-xs text-[#C6A15B]/60 font-sans mt-1">{pinPromptFor.service}</p>
+              </div>
+              <PINPad
+                label="Enter your PIN"
+                onComplete={handlePIN}
+                loading={pinLoading}
+                error={pinError}
+                onCancel={closePin}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-col gap-3 h-full">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-[#C6A15B]/40 font-sans">Queue</p>
+          {queue.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-[#C6A15B]/10 border border-[#C6A15B]/25 text-[#C6A15B] text-xs font-sans">
+              {queue.length}
+            </span>
+          )}
+        </div>
+
+        {queue.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center border border-white/6 rounded-sm">
+            <p className="text-white/15 font-sans text-xs">No one waiting</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 overflow-y-auto flex-1">
+            <AnimatePresence>
+              {queue.map((entry, idx) => (
+                <motion.div key={entry.id} layout
+                  initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 30, transition: { duration: 0.15 } }}
+                  transition={{ duration: 0.2, delay: idx * 0.03 }}
+                  className="flex items-center justify-between gap-2 bg-white/4 border border-white/8 rounded-sm px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] text-white/25 font-sans">{idx + 1}.</span>
+                      <p className="font-serif text-sm text-white truncate">{entry.customer_name}</p>
+                    </div>
+                    <p className="text-[11px] font-sans text-[#C6A15B]/60 ml-3 truncate">{entry.service}</p>
+                    <p className="text-[10px] font-sans text-white/18 ml-3">{timeAgo(entry.created_at)}</p>
+                  </div>
+                  <button onClick={() => openPin(entry)} disabled={!!pinPromptFor}
+                    className="shrink-0 px-3 py-1.5 border border-[#C6A15B]/35 text-[#C6A15B] text-[10px] tracking-widest uppercase font-sans hover:bg-[#C6A15B]/10 active:scale-95 transition-all duration-150 rounded-sm disabled:opacity-40">
+                    ✓
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         )}
       </div>
-
-      {queue.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center border border-white/6 rounded-sm">
-          <p className="text-white/15 font-sans text-xs">No one waiting</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2 overflow-y-auto flex-1">
-          <AnimatePresence>
-            {queue.map((entry, idx) => (
-              <motion.div key={entry.id} layout
-                initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 30, transition: { duration: 0.15 } }}
-                transition={{ duration: 0.2, delay: idx * 0.03 }}
-                className="flex items-center justify-between gap-2 bg-white/4 border border-white/8 rounded-sm px-3 py-2.5"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] text-white/25 font-sans">{idx + 1}.</span>
-                    <p className="font-serif text-sm text-white truncate">{entry.customer_name}</p>
-                  </div>
-                  <p className="text-[11px] font-sans text-[#C6A15B]/60 ml-3 truncate">{entry.service}</p>
-                  <p className="text-[10px] font-sans text-white/18 ml-3">{timeAgo(entry.created_at)}</p>
-                </div>
-                <button onClick={() => handleServed(entry.id)} disabled={servingId === entry.id}
-                  className="shrink-0 px-3 py-1.5 border border-[#C6A15B]/35 text-[#C6A15B] text-[10px] tracking-widest uppercase font-sans hover:bg-[#C6A15B]/10 active:scale-95 transition-all duration-150 rounded-sm disabled:opacity-40">
-                  {servingId === entry.id ? '…' : '✓'}
-                </button>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
-    </div>
+    </>
   )
 }
 
