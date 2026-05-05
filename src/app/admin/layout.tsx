@@ -12,6 +12,7 @@ const NAV = [
   { label: 'Staff',        href: '/admin/staff',         icon: '◎' },
   { label: 'Queue',        href: '/admin/queue',         icon: '◇' },
   { label: 'Schedule',     href: '/admin/schedule',      icon: '▤' },
+  { label: 'Pricing',      href: '/admin/pricing',       icon: '$' },
   { label: 'Specials',     href: '/admin/specials',      icon: '◆' },
   { label: 'Complaints',   href: '/admin/complaints',    icon: '◌' },
   { label: 'Settings',     href: '/admin/settings',      icon: '◈' },
@@ -30,17 +31,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (pathname === '/admin') return  // login page — no auth required
     const stored = sessionStorage.getItem('rns_employee')
-    if (!stored) { router.replace('/employee'); return }
+    if (!stored) { router.replace('/admin'); return }
     const emp: SessionEmployee = JSON.parse(stored)
     if (emp.role !== 'admin') { router.replace('/employee/dashboard'); return }
     setAdmin(emp)
-  }, [router])
+  }, [router, pathname])
 
   const handleSignOut = () => {
     sessionStorage.removeItem('rns_employee')
     router.push('/admin')
   }
+
+  // Render the login page directly — no sidebar, no auth wall
+  if (pathname === '/admin') return <>{children}</>
 
   if (!admin) return null
 

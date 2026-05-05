@@ -1,42 +1,39 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import Link from 'next/link'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { StaggerContainer, StaggerItem } from '@/components/ui/AnimatedSection'
 import { Button } from '@/components/ui/Button'
 import { serviceCategories } from '@/lib/content'
 
+type PriceMap = Record<string, { price: number; priceNote: string | null }>
+
 // Featured packages for the preview (one per main category)
 const featuredPackages = [
-  {
-    categoryId: 'manicures',
-    packageName: 'Royal Manicure',
-    badge: 'Most Popular',
-  },
-  {
-    categoryId: 'pedicures',
-    packageName: 'Gold Pedicure',
-    badge: 'Luxury',
-  },
-  {
-    categoryId: 'combinations',
-    packageName: 'Signature Pedicure & Manicure',
-    badge: 'Best Value',
-  },
-  {
-    categoryId: 'facials',
-    packageName: 'Hydrafacial',
-    badge: 'Advanced',
-  },
+  { categoryId: 'manicures',    packageName: 'Royal Manicure',               badge: 'Most Popular' },
+  { categoryId: 'pedicures',    packageName: 'Gold Pedicure',                badge: 'Luxury'       },
+  { categoryId: 'combinations', packageName: 'Signature Pedicure & Manicure', badge: 'Best Value'  },
+  { categoryId: 'facials',      packageName: 'Hydrafacial',                  badge: 'Advanced'     },
 ]
 
 export function PricingPreview() {
+  const [priceOverrides, setPriceOverrides] = useState<PriceMap>({})
+
+  useEffect(() => {
+    fetch('/api/services/prices')
+      .then(r => r.json())
+      .then(d => setPriceOverrides(d.prices ?? {}))
+      .catch(() => {})
+  }, [])
+
   const packages = featuredPackages
     .map(({ categoryId, packageName }) => {
       const category = serviceCategories.find((c) => c.id === categoryId)
       const pkg = category?.packages.find((p) => p.name === packageName)
-      return pkg ? { ...pkg, categoryId, categoryName: category?.name } : null
+      if (!pkg) return null
+      const ov = priceOverrides[pkg.name]
+      return { ...pkg, price: ov?.price ?? pkg.price, categoryId, categoryName: category?.name }
     })
     .filter(Boolean)
 

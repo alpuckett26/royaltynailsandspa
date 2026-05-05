@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
         return
       }
       sessionStorage.setItem('rns_employee', JSON.stringify(data.employee))
-      router.push('/admin/complaints')
+      router.push('/admin/dashboard')
     } catch {
       setPinError('Connection error. Please try again.')
     } finally {

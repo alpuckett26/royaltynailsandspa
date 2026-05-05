@@ -6,6 +6,7 @@ import { AddOns } from '@/components/packages/AddOns'
 import { CTABand } from '@/components/home/CTABand'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { PackagesHero } from '@/components/packages/PackagesHero'
+import { getSupabaseAdmin } from '@/lib/supabase'
 
 export const metadata: Metadata = {
   title: 'Packages & Pricing',
@@ -13,14 +14,34 @@ export const metadata: Metadata = {
     'Browse the complete Royalty Nails & Spa service menu — manicures from $22, pedicures from $25, signature combinations, acrylics, and advanced facials.',
 }
 
-export default function PackagesPage() {
+async function getPriceOverrides(): Promise<Record<string, { price: number; priceNote: string | null }>> {
+  try {
+    const supabase = getSupabaseAdmin()
+    const { data } = await supabase.from('service_prices').select('name, price, price_note')
+    const map: Record<string, { price: number; priceNote: string | null }> = {}
+    for (const row of data ?? []) map[row.name] = { price: Number(row.price), priceNote: row.price_note }
+    return map
+  } catch { return {} }
+}
+
+export default async function PackagesPage() {
+  const overrides = await getPriceOverrides()
+
+  const categories = serviceCategories.map(cat => ({
+    ...cat,
+    packages: cat.packages.map(pkg => {
+      const ov = overrides[pkg.name]
+      return ov ? { ...pkg, price: ov.price, priceNote: ov.priceNote ?? pkg.priceNote } : pkg
+    }),
+  }))
+
   return (
     <>
       {/* Page Hero + sticky category nav */}
       <PackagesHero />
 
       {/* Service Categories */}
-      {serviceCategories.map((category) => (
+      {categories.map((category) => (
         <section
           key={category.id}
           id={category.id}

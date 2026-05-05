@@ -215,6 +215,12 @@ export default function AdminPage() {
         </div>
         <div className="flex flex-col items-end gap-2">
           <button
+            onClick={() => router.push('/admin')}
+            className="text-xs tracking-widest uppercase text-gold/50 hover:text-gold font-sans transition-colors duration-200"
+          >
+            Admin Panel →
+          </button>
+          <button
             onClick={() => router.push('/employee/appointments')}
             className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
           >
