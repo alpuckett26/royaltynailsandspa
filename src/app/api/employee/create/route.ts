@@ -47,10 +47,10 @@ export async function POST(req: NextRequest) {
     // Hash the PIN
     const pin_hash = await bcrypt.hash(pin, 10)
 
-    // Insert new employee
+    // Insert new employee — active: true must be explicit in case the DB default is null
     const { data: employee, error: insertError } = await supabase
       .from('employees')
-      .insert({ name: name.trim(), pin_hash, role })
+      .insert({ name: name.trim(), pin_hash, role, active: true })
       .select('id, name, role, created_at')
       .single()
 

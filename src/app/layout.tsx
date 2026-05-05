@@ -81,6 +81,12 @@ export const viewport: Viewport = {
   themeColor: '#0B0F14',
 }
 
+// ─── ManyChat Page ID ───────────────────────────────────────────────────────
+// Replace with your Facebook Page ID to activate the chat widget.
+// Find it: Facebook Page → About → Page Transparency → Page ID
+const MANYCHAT_PAGE_ID = '' // e.g. '123456789012345'
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function RootLayout({
   children,
 }: {
@@ -94,6 +100,18 @@ export default function RootLayout({
     >
       <body className="bg-charcoal text-offwhite antialiased">
         {children}
+        {/* ManyChat website chat widget — active when MANYCHAT_PAGE_ID is set */}
+        {MANYCHAT_PAGE_ID && (
+          <>
+            <Script
+              src={`//widget.manychat.com/${MANYCHAT_PAGE_ID}.js`}
+              strategy="lazyOnload"
+            />
+            <Script id="manychat-init" strategy="lazyOnload">
+              {`if(typeof ManyChat !== 'undefined') ManyChat.init();`}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   )

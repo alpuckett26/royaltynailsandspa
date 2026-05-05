@@ -172,6 +172,15 @@ export default function EmployeeLoginPage() {
                 ))}
               </div>
             )}
+            {/* Owner shortcut */}
+            <div className="pt-2 text-center border-t border-border/20">
+              <Link
+                href="/admin"
+                className="text-xs tracking-widest uppercase text-offwhite/20 hover:text-gold/60 font-sans transition-colors duration-200"
+              >
+                Owner / Admin Login →
+              </Link>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

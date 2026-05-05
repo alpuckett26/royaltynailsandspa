@@ -9,13 +9,14 @@ type PINPadProps = {
   loading?: boolean
   error?: string | null
   onCancel?: () => void
-  employeeName: string
+  employeeName?: string
+  label?: string
 }
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫']
 const PIN_LENGTH = 4
 
-export function PINPad({ onComplete, loading, error, onCancel, employeeName }: PINPadProps) {
+export function PINPad({ onComplete, loading, error, onCancel, employeeName, label }: PINPadProps) {
   const [pin, setPin] = useState('')
 
   const handleKey = (key: string) => {
@@ -39,12 +40,14 @@ export function PINPad({ onComplete, loading, error, onCancel, employeeName }: P
 
   return (
     <div className="flex flex-col items-center gap-8 w-full max-w-xs mx-auto">
-      {/* Employee name */}
+      {/* Header */}
       <div className="text-center">
         <p className="text-[10px] tracking-[0.3em] uppercase text-gold/60 font-sans mb-2">
-          Clocking in as
+          {label ?? 'Clocking in as'}
         </p>
-        <h2 className="font-serif text-2xl text-offwhite">{employeeName}</h2>
+        {employeeName && (
+          <h2 className="font-serif text-2xl text-offwhite">{employeeName}</h2>
+        )}
       </div>
 
       {/* PIN dots */}

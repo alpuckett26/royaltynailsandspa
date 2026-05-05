@@ -56,13 +56,10 @@ export default function SchedulePage() {
   const [weekDates, setWeekDates] = useState<Date[]>([])
   const [loading, setLoading] = useState(true)
 
-  // New shift form
+  // Shift form — per-employee, multi-day
   const [showForm, setShowForm] = useState(false)
   const [formEmp, setFormEmp] = useState('')
-  const [formDate, setFormDate] = useState('')
-  const [formStart, setFormStart] = useState('10:00')
-  const [formEnd, setFormEnd] = useState('19:00')
-  const [formNotes, setFormNotes] = useState('')
+  const [formDays, setFormDays] = useState<Record<string, { enabled: boolean; start: string; end: string }>>({})
   const [formLoading, setFormLoading] = useState(false)
   const [formMsg, setFormMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
@@ -78,6 +75,15 @@ export default function SchedulePage() {
   useEffect(() => {
     setWeekDates(getWeekDates(weekOffset))
   }, [weekOffset])
+
+  // Reset day selections whenever the form opens or the visible week changes
+  useEffect(() => {
+    if (!showForm || !weekDates.length) return
+    const init: Record<string, { enabled: boolean; start: string; end: string }> = {}
+    weekDates.forEach(d => { init[fmt(d)] = { enabled: false, start: '10:00', end: '19:00' } })
+    setFormDays(init)
+    setFormMsg(null)
+  }, [showForm, weekDates])
 
   useEffect(() => {
     if (!admin) return
@@ -103,29 +109,44 @@ export default function SchedulePage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!admin || !formEmp || !formDate) return
+    if (!admin || !formEmp) return
+    const enabled = Object.entries(formDays).filter(([, v]) => v.enabled)
+    if (!enabled.length) {
+      setFormMsg({ type: 'err', text: 'Select at least one day.' })
+      return
+    }
     setFormLoading(true)
     setFormMsg(null)
     try {
-      const res = await fetch('/api/employee/shifts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminId: admin.id,
-          employeeId: formEmp,
-          shiftDate: formDate,
-          startTime: formStart,
-          endTime: formEnd,
-          notes: formNotes.trim() || null,
-        }),
+      const results = await Promise.all(
+        enabled.map(([dateStr, day]) =>
+          fetch('/api/employee/shifts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              adminId: admin.id,
+              employeeId: formEmp,
+              shiftDate: dateStr,
+              startTime: day.start,
+              endTime: day.end,
+              notes: null,
+            }),
+          })
+        )
+      )
+      const failed = results.filter(r => !r.ok).length
+      if (failed) throw new Error(`${failed} shift(s) failed to save.`)
+      const count = enabled.length
+      setFormMsg({ type: 'ok', text: `${count} shift${count > 1 ? 's' : ''} added.` })
+      // Uncheck all days but keep times
+      setFormDays(prev => {
+        const next = { ...prev }
+        Object.keys(next).forEach(k => { next[k] = { ...next[k], enabled: false } })
+        return next
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setFormMsg({ type: 'ok', text: 'Shift added.' })
-      setFormNotes('')
       fetchShifts()
     } catch (err: unknown) {
-      setFormMsg({ type: 'err', text: err instanceof Error ? err.message : 'Failed to add shift.' })
+      setFormMsg({ type: 'err', text: err instanceof Error ? err.message : 'Failed to add shifts.' })
     } finally {
       setFormLoading(false)
     }
@@ -252,14 +273,14 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* Add shift */}
+      {/* Add shifts — per employee, multi-day */}
       <div className="border-t border-border/40 pt-6">
         <button
-          onClick={() => setShowForm(v => !v)}
+          onClick={() => { setShowForm(v => !v); setFormEmp('') }}
           className="flex items-center gap-3 text-sm font-sans text-offwhite/40 hover:text-offwhite/70 transition-colors duration-200"
         >
           <span className="text-gold/50 text-lg leading-none">{showForm ? '−' : '+'}</span>
-          <span className="tracking-widest uppercase text-xs">Add Shift</span>
+          <span className="tracking-widest uppercase text-xs">Schedule Employee</span>
         </button>
 
         {showForm && (
@@ -267,38 +288,104 @@ export default function SchedulePage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             onSubmit={handleCreate}
-            className="mt-6 glass-card border border-border rounded-sm p-6 grid grid-cols-2 sm:grid-cols-3 gap-4"
+            className="mt-6 glass-card border border-border rounded-sm p-6 flex flex-col gap-6"
           >
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Employee</label>
-              <select value={formEmp} onChange={e => setFormEmp(e.target.value)} required className={inputClass}>
-                <option value="">Select…</option>
+            {/* Step 1: pick employee */}
+            <div className="flex flex-col gap-1.5 max-w-xs">
+              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
+                Employee
+              </label>
+              <select
+                value={formEmp}
+                onChange={e => { setFormEmp(e.target.value); setFormMsg(null) }}
+                required
+                className={inputClass}
+              >
+                <option value="">Select employee…</option>
                 {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Date</label>
-              <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} required className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Start</label>
-              <input type="time" value={formStart} onChange={e => setFormStart(e.target.value)} required className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">End</label>
-              <input type="time" value={formEnd} onChange={e => setFormEnd(e.target.value)} required className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">Notes (optional)</label>
-              <input type="text" value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="e.g. Open shift" className={inputClass} />
-            </div>
-            <div className="col-span-2 sm:col-span-3 flex items-center gap-3">
-              <button type="submit" disabled={formLoading}
-                className="px-6 py-2.5 bg-gold text-charcoal text-xs tracking-widest uppercase font-semibold font-sans hover:bg-gold-light transition-colors duration-200 disabled:opacity-50">
-                {formLoading ? 'Adding…' : 'Add Shift'}
+
+            {/* Step 2: pick days + times */}
+            {formEmp && weekDates.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <p className="text-[10px] tracking-[0.25em] uppercase text-offwhite/30 font-sans">
+                  Select days for {fmtDisplay(weekDates[0])} – {fmtDisplay(weekDates[6])}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                  {weekDates.map((date, i) => {
+                    const dateStr = fmt(date)
+                    const day = formDays[dateStr]
+                    if (!day) return null
+                    const isToday = dateStr === fmt(new Date())
+                    return (
+                      <div key={dateStr} className={`flex flex-col gap-2 p-3 rounded-sm border transition-colors duration-150 ${
+                        day.enabled ? 'border-gold/40 bg-gold/5' : 'border-border/40'
+                      }`}>
+                        {/* Day toggle */}
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={day.enabled}
+                            onChange={e => setFormDays(prev => ({
+                              ...prev, [dateStr]: { ...prev[dateStr], enabled: e.target.checked }
+                            }))}
+                            className="accent-gold"
+                          />
+                          <span className={`text-xs font-sans ${isToday ? 'text-gold' : 'text-offwhite/60'}`}>
+                            {DAYS[i]} {date.getDate()}
+                          </span>
+                        </label>
+                        {/* Times — only when checked */}
+                        {day.enabled && (
+                          <div className="flex flex-col gap-1.5">
+                            <input
+                              type="time"
+                              value={day.start}
+                              onChange={e => setFormDays(prev => ({
+                                ...prev, [dateStr]: { ...prev[dateStr], start: e.target.value }
+                              }))}
+                              className="w-full bg-charcoal border border-border/60 rounded-sm px-2 py-1 text-offwhite text-xs font-sans focus:outline-none focus:border-gold/50"
+                            />
+                            <input
+                              type="time"
+                              value={day.end}
+                              onChange={e => setFormDays(prev => ({
+                                ...prev, [dateStr]: { ...prev[dateStr], end: e.target.value }
+                              }))}
+                              className="w-full bg-charcoal border border-border/60 rounded-sm px-2 py-1 text-offwhite text-xs font-sans focus:outline-none focus:border-gold/50"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Submit row */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {(() => {
+                const count = Object.values(formDays).filter(d => d.enabled).length
+                return (
+                  <button type="submit" disabled={formLoading || !formEmp}
+                    className="px-6 py-2.5 bg-gold text-charcoal text-xs tracking-widest uppercase font-semibold font-sans hover:bg-gold-light transition-colors duration-200 disabled:opacity-50">
+                    {formLoading ? 'Saving…' : count > 0 ? `Add ${count} Shift${count > 1 ? 's' : ''}` : 'Add Shifts'}
+                  </button>
+                )
+              })()}
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setFormEmp(''); setFormMsg(null) }}
+                className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
+              >
+                Cancel
               </button>
               {formMsg && (
-                <p className={`text-xs font-sans ${formMsg.type === 'ok' ? 'text-gold' : 'text-red-400'}`}>{formMsg.text}</p>
+                <p className={`text-xs font-sans ${formMsg.type === 'ok' ? 'text-gold' : 'text-red-400'}`}>
+                  {formMsg.text}
+                </p>
               )}
             </div>
           </motion.form>

@@ -14,6 +14,11 @@ type Summary = {
   totalMinutes: number
   entries: Entry[]
 }
+type MyStatus = {
+  isClockedIn: boolean
+  openEntry: { id: string; clock_in: string } | null
+  todayMinutes: number
+}
 
 type Range = 'week' | 'month' | 'all'
 
@@ -29,7 +34,6 @@ function getWeeklyBreakdown(entries: Entry[]): Array<{ label: string; minutes: n
   for (const entry of entries) {
     if (!entry.clock_out) continue
     const d = new Date(entry.clock_in)
-    // Roll back to Sunday
     const sun = new Date(d)
     sun.setDate(d.getDate() - d.getDay())
     const sat = new Date(sun)
@@ -41,6 +45,10 @@ function getWeeklyBreakdown(entries: Entry[]): Array<{ label: string; minutes: n
   return Array.from(weekMap.entries())
     .map(([label, minutes]) => ({ label, minutes }))
     .sort((a, b) => a.label.localeCompare(b.label))
+}
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 }
 
 function getRangeDates(range: Range): { from: string; to: string } {
@@ -76,6 +84,10 @@ export default function AdminPage() {
   const [range, setRange] = useState<Range>('week')
   const [expanded, setExpanded] = useState<string | null>(null)
 
+  // Admin's own clock status
+  const [myStatus, setMyStatus] = useState<MyStatus | null>(null)
+  const [myClockLoading, setMyClockLoading] = useState(false)
+
   // New employee form
   const [showForm, setShowForm] = useState(false)
   const [newName, setNewName] = useState('')
@@ -93,6 +105,46 @@ export default function AdminPage() {
     if (emp.role !== 'admin') { router.replace('/employee/dashboard'); return }
     setAdmin(emp)
   }, [router])
+
+  const fetchMyStatus = useCallback(async (empId: string) => {
+    try {
+      const res = await fetch(`/api/employee/status?employeeId=${empId}`)
+      const data = await res.json()
+      setMyStatus(data)
+    } catch { /* silent */ }
+  }, [])
+
+  useEffect(() => {
+    if (admin) fetchMyStatus(admin.id)
+  }, [admin, fetchMyStatus])
+
+  const handleMyClockIn = async () => {
+    if (!admin) return
+    setMyClockLoading(true)
+    try {
+      await fetch('/api/employee/clock-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId: admin.id }),
+      })
+      await fetchMyStatus(admin.id)
+    } catch { /* silent */ }
+    finally { setMyClockLoading(false) }
+  }
+
+  const handleMyClockOut = async () => {
+    if (!admin) return
+    setMyClockLoading(true)
+    try {
+      await fetch('/api/employee/clock-out', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId: admin.id }),
+      })
+      await fetchMyStatus(admin.id)
+    } catch { /* silent */ }
+    finally { setMyClockLoading(false) }
+  }
 
   const fetchHours = useCallback(async (r: Range) => {
     setLoading(true)
@@ -143,7 +195,7 @@ export default function AdminPage() {
 
   const handleLogout = () => {
     sessionStorage.removeItem('rns_employee')
-    router.push('/employee')
+    router.push('/admin')
   }
 
   if (!admin) return null
@@ -187,12 +239,6 @@ export default function AdminPage() {
             Customers →
           </button>
           <button
-            onClick={() => router.push('/employee/dashboard')}
-            className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
-          >
-            My Dashboard
-          </button>
-          <button
             onClick={handleLogout}
             className="text-xs tracking-widest uppercase text-offwhite/20 hover:text-offwhite/40 font-sans transition-colors duration-200"
           >
@@ -200,6 +246,38 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {/* My clock — compact inline widget */}
+      {myStatus !== null && (
+        <div className="glass-card border border-border/60 rounded-sm px-5 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${myStatus.isClockedIn ? 'bg-gold animate-pulse' : 'bg-border'}`} />
+            <div>
+              <p className="text-xs font-sans text-offwhite/55">
+                {myStatus.isClockedIn && myStatus.openEntry
+                  ? `Clocked in at ${fmtTime(myStatus.openEntry.clock_in)}`
+                  : 'Not clocked in'}
+              </p>
+              {myStatus.todayMinutes > 0 && (
+                <p className="text-[10px] font-sans text-offwhite/25 mt-0.5">
+                  Today: {formatHours(myStatus.todayMinutes)}
+                </p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={myStatus.isClockedIn ? handleMyClockOut : handleMyClockIn}
+            disabled={myClockLoading}
+            className={`text-xs tracking-widest uppercase font-sans transition-colors duration-200 disabled:opacity-40 ${
+              myStatus.isClockedIn
+                ? 'text-gold/60 hover:text-gold'
+                : 'text-offwhite/35 hover:text-offwhite'
+            }`}
+          >
+            {myClockLoading ? '…' : myStatus.isClockedIn ? 'Clock Out' : 'Clock In'}
+          </button>
+        </div>
+      )}
 
       {/* Range selector */}
       <div className="flex gap-2">
