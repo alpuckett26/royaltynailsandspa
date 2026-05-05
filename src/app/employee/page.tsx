@@ -173,12 +173,14 @@ export default function EmployeeLoginPage() {
               </div>
             )}
             {/* Owner shortcut */}
-            <div className="pt-2 text-center border-t border-border/20">
+            <div className="pt-4 text-center border-t border-border/30">
               <Link
                 href="/admin"
-                className="text-xs tracking-widest uppercase text-offwhite/20 hover:text-gold/60 font-sans transition-colors duration-200"
+                className="inline-flex items-center gap-2 text-xs tracking-widest uppercase text-gold/60 hover:text-gold font-sans transition-colors duration-200"
               >
-                Owner / Admin Login →
+                <span className="text-gold/40">◆</span>
+                Owner / Admin Login
+                <span className="text-gold/40">→</span>
               </Link>
             </div>
           </motion.div>

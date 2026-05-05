@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type SessionEmployee = { id: string; name: string; role: string }
 type Employee = { id: string; name: string; role: string }
@@ -15,6 +15,7 @@ type Shift = {
   notes: string | null
   employees: { name: string }
 }
+type ModalRow = { empId: string; start: string; end: string }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -40,6 +41,10 @@ function fmtDisplay(date: Date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+function fmtFull(date: Date) {
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+}
+
 function fmtTime(t: string) {
   const [h, m] = t.split(':').map(Number)
   const ampm = h >= 12 ? 'PM' : 'AM'
@@ -47,21 +52,22 @@ function fmtTime(t: string) {
   return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
+const emptyRow = (): ModalRow => ({ empId: '', start: '10:00', end: '19:00' })
+
 export default function SchedulePage() {
   const router = useRouter()
-  const [admin, setAdmin] = useState<SessionEmployee | null>(null)
+  const [admin, setAdmin]       = useState<SessionEmployee | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
-  const [shifts, setShifts] = useState<Shift[]>([])
+  const [shifts, setShifts]     = useState<Shift[]>([])
   const [weekOffset, setWeekOffset] = useState(0)
-  const [weekDates, setWeekDates] = useState<Date[]>([])
-  const [loading, setLoading] = useState(true)
+  const [weekDates, setWeekDates]   = useState<Date[]>([])
+  const [loading, setLoading]       = useState(true)
 
-  // Shift form — per-employee, multi-day
-  const [showForm, setShowForm] = useState(false)
-  const [formEmp, setFormEmp] = useState('')
-  const [formDays, setFormDays] = useState<Record<string, { enabled: boolean; start: string; end: string }>>({})
-  const [formLoading, setFormLoading] = useState(false)
-  const [formMsg, setFormMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  // Day modal
+  const [modalDate, setModalDate]     = useState<Date | null>(null)
+  const [modalRows, setModalRows]     = useState<ModalRow[]>([emptyRow()])
+  const [modalLoading, setModalLoading] = useState(false)
+  const [modalError, setModalError]   = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -72,18 +78,7 @@ export default function SchedulePage() {
     setAdmin(emp)
   }, [router])
 
-  useEffect(() => {
-    setWeekDates(getWeekDates(weekOffset))
-  }, [weekOffset])
-
-  // Reset day selections whenever the form opens or the visible week changes
-  useEffect(() => {
-    if (!showForm || !weekDates.length) return
-    const init: Record<string, { enabled: boolean; start: string; end: string }> = {}
-    weekDates.forEach(d => { init[fmt(d)] = { enabled: false, start: '10:00', end: '19:00' } })
-    setFormDays(init)
-    setFormMsg(null)
-  }, [showForm, weekDates])
+  useEffect(() => { setWeekDates(getWeekDates(weekOffset)) }, [weekOffset])
 
   useEffect(() => {
     if (!admin) return
@@ -107,48 +102,48 @@ export default function SchedulePage() {
 
   useEffect(() => { fetchShifts() }, [fetchShifts])
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!admin || !formEmp) return
-    const enabled = Object.entries(formDays).filter(([, v]) => v.enabled)
-    if (!enabled.length) {
-      setFormMsg({ type: 'err', text: 'Select at least one day.' })
-      return
-    }
-    setFormLoading(true)
-    setFormMsg(null)
+  function openModal(date: Date) {
+    setModalDate(date)
+    setModalRows([emptyRow()])
+    setModalError(null)
+  }
+
+  function closeModal() {
+    setModalDate(null)
+    setModalRows([emptyRow()])
+    setModalError(null)
+  }
+
+  async function handleModalSave() {
+    if (!admin || !modalDate) return
+    const valid = modalRows.filter(r => r.empId)
+    if (!valid.length) { setModalError('Select at least one employee.'); return }
+    setModalLoading(true)
+    setModalError(null)
     try {
       const results = await Promise.all(
-        enabled.map(([dateStr, day]) =>
+        valid.map(row =>
           fetch('/api/employee/shifts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               adminId: admin.id,
-              employeeId: formEmp,
-              shiftDate: dateStr,
-              startTime: day.start,
-              endTime: day.end,
+              employeeId: row.empId,
+              shiftDate: fmt(modalDate),
+              startTime: row.start,
+              endTime: row.end,
               notes: null,
             }),
           })
         )
       )
-      const failed = results.filter(r => !r.ok).length
-      if (failed) throw new Error(`${failed} shift(s) failed to save.`)
-      const count = enabled.length
-      setFormMsg({ type: 'ok', text: `${count} shift${count > 1 ? 's' : ''} added.` })
-      // Uncheck all days but keep times
-      setFormDays(prev => {
-        const next = { ...prev }
-        Object.keys(next).forEach(k => { next[k] = { ...next[k], enabled: false } })
-        return next
-      })
+      if (results.some(r => !r.ok)) throw new Error('Some shifts failed to save.')
+      closeModal()
       fetchShifts()
     } catch (err: unknown) {
-      setFormMsg({ type: 'err', text: err instanceof Error ? err.message : 'Failed to add shifts.' })
+      setModalError(err instanceof Error ? err.message : 'Failed to save.')
     } finally {
-      setFormLoading(false)
+      setModalLoading(false)
     }
   }
 
@@ -158,12 +153,13 @@ export default function SchedulePage() {
     fetchShifts()
   }
 
-  const inputClass = 'w-full bg-charcoal border border-border rounded-sm px-3 py-2 text-offwhite text-sm font-sans placeholder:text-offwhite/25 focus:outline-none focus:border-gold/50 transition-colors duration-200'
+  const inputClass = 'bg-charcoal border border-border rounded-sm px-3 py-2 text-offwhite text-sm font-sans focus:outline-none focus:border-gold/50 transition-colors duration-200'
 
   if (!admin) return null
 
   return (
     <div className="w-full max-w-5xl flex flex-col gap-8">
+
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
@@ -202,38 +198,43 @@ export default function SchedulePage() {
       {/* Weekly grid */}
       <div className="grid grid-cols-7 gap-2">
         {DAYS.map((day, i) => {
-          const date = weekDates[i]
+          const date    = weekDates[i]
           const dateStr = date ? fmt(date) : ''
           const dayShifts = shifts.filter(s => s.shift_date === dateStr)
-          const isToday = dateStr === fmt(new Date())
+          const isToday   = dateStr === fmt(new Date())
           return (
-            <div key={day} className={`flex flex-col gap-2 min-h-[120px]`}>
-              {/* Day header */}
-              <div className={`text-center pb-2 border-b ${isToday ? 'border-gold/40' : 'border-border/40'}`}>
-                <p className={`text-[10px] tracking-widest uppercase font-sans ${isToday ? 'text-gold' : 'text-offwhite/30'}`}>{day}</p>
-                <p className={`text-sm font-serif ${isToday ? 'text-gold' : 'text-offwhite/50'}`}>
+            <div key={day} className="flex flex-col gap-2 min-h-[120px]">
+              {/* Day header — click to open modal */}
+              <button
+                onClick={() => date && openModal(date)}
+                className={`w-full text-center pb-2 border-b group transition-colors duration-150 ${
+                  isToday ? 'border-gold/40' : 'border-border/40 hover:border-gold/25'
+                }`}
+              >
+                <p className={`text-[10px] tracking-widest uppercase font-sans ${isToday ? 'text-gold' : 'text-offwhite/30 group-hover:text-offwhite/60'}`}>
+                  {day}
+                </p>
+                <p className={`text-sm font-serif ${isToday ? 'text-gold' : 'text-offwhite/50 group-hover:text-offwhite/70'}`}>
                   {date ? date.getDate() : ''}
                 </p>
-              </div>
+                <p className="text-[9px] text-gold/40 group-hover:text-gold/70 transition-colors duration-150 mt-0.5 font-sans">+</p>
+              </button>
+
               {/* Shifts */}
               {loading ? (
                 <div className="h-10 bg-border/20 rounded-sm animate-pulse" />
               ) : (
                 <div className="flex flex-col gap-1">
                   {dayShifts.map(shift => (
-                    <motion.div
-                      key={shift.id}
+                    <motion.div key={shift.id}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="group relative bg-charcoal-100 border border-gold/20 rounded-sm px-2 py-1.5"
+                      className="group relative border border-gold/20 rounded-sm px-2 py-1.5"
                     >
                       <p className="text-[10px] font-sans text-gold/80 leading-tight truncate">{shift.employees?.name}</p>
                       <p className="text-[9px] font-sans text-offwhite/40 leading-tight">
                         {fmtTime(shift.start_time)}–{fmtTime(shift.end_time)}
                       </p>
-                      {shift.notes && (
-                        <p className="text-[9px] font-sans text-offwhite/25 leading-tight truncate">{shift.notes}</p>
-                      )}
                       <button
                         onClick={() => handleDelete(shift.id)}
                         className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 text-offwhite/20 hover:text-red-400 text-[10px] transition-all duration-150 leading-none"
@@ -247,10 +248,13 @@ export default function SchedulePage() {
         })}
       </div>
 
-      {/* Employee share links */}
+      {/* Schedule links */}
       {employees.length > 0 && (
         <div className="border-t border-border/40 pt-6">
-          <p className="text-[10px] tracking-[0.25em] uppercase text-gold/50 font-sans mb-4">Schedule Links</p>
+          <div className="flex items-center gap-3 mb-4">
+            <p className="text-[10px] tracking-[0.25em] uppercase text-gold/50 font-sans">Schedule Links</p>
+            <p className="text-[10px] font-sans text-offwhite/25">— share with each employee so they can view their shifts</p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {employees.map(emp => {
               const link = `${typeof window !== 'undefined' ? window.location.origin : ''}/schedule/${emp.id}`
@@ -273,124 +277,89 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* Add shifts — per employee, multi-day */}
-      <div className="border-t border-border/40 pt-6">
-        <button
-          onClick={() => { setShowForm(v => !v); setFormEmp('') }}
-          className="flex items-center gap-3 text-sm font-sans text-offwhite/40 hover:text-offwhite/70 transition-colors duration-200"
-        >
-          <span className="text-gold/50 text-lg leading-none">{showForm ? '−' : '+'}</span>
-          <span className="tracking-widest uppercase text-xs">Schedule Employee</span>
-        </button>
-
-        {showForm && (
-          <motion.form
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleCreate}
-            className="mt-6 glass-card border border-border rounded-sm p-6 flex flex-col gap-6"
+      {/* Day modal */}
+      <AnimatePresence>
+        {modalDate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-charcoal/90 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={closeModal}
           >
-            {/* Step 1: pick employee */}
-            <div className="flex flex-col gap-1.5 max-w-xs">
-              <label className="text-[10px] tracking-widest uppercase text-offwhite/35 font-sans">
-                Employee
-              </label>
-              <select
-                value={formEmp}
-                onChange={e => { setFormEmp(e.target.value); setFormMsg(null) }}
-                required
-                className={inputClass}
-              >
-                <option value="">Select employee…</option>
-                {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-            </div>
-
-            {/* Step 2: pick days + times */}
-            {formEmp && weekDates.length > 0 && (
-              <div className="flex flex-col gap-3">
-                <p className="text-[10px] tracking-[0.25em] uppercase text-offwhite/30 font-sans">
-                  Select days for {fmtDisplay(weekDates[0])} – {fmtDisplay(weekDates[6])}
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                  {weekDates.map((date, i) => {
-                    const dateStr = fmt(date)
-                    const day = formDays[dateStr]
-                    if (!day) return null
-                    const isToday = dateStr === fmt(new Date())
-                    return (
-                      <div key={dateStr} className={`flex flex-col gap-2 p-3 rounded-sm border transition-colors duration-150 ${
-                        day.enabled ? 'border-gold/40 bg-gold/5' : 'border-border/40'
-                      }`}>
-                        {/* Day toggle */}
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={day.enabled}
-                            onChange={e => setFormDays(prev => ({
-                              ...prev, [dateStr]: { ...prev[dateStr], enabled: e.target.checked }
-                            }))}
-                            className="accent-gold"
-                          />
-                          <span className={`text-xs font-sans ${isToday ? 'text-gold' : 'text-offwhite/60'}`}>
-                            {DAYS[i]} {date.getDate()}
-                          </span>
-                        </label>
-                        {/* Times — only when checked */}
-                        {day.enabled && (
-                          <div className="flex flex-col gap-1.5">
-                            <input
-                              type="time"
-                              value={day.start}
-                              onChange={e => setFormDays(prev => ({
-                                ...prev, [dateStr]: { ...prev[dateStr], start: e.target.value }
-                              }))}
-                              className="w-full bg-charcoal border border-border/60 rounded-sm px-2 py-1 text-offwhite text-xs font-sans focus:outline-none focus:border-gold/50"
-                            />
-                            <input
-                              type="time"
-                              value={day.end}
-                              onChange={e => setFormDays(prev => ({
-                                ...prev, [dateStr]: { ...prev[dateStr], end: e.target.value }
-                              }))}
-                              className="w-full bg-charcoal border border-border/60 rounded-sm px-2 py-1 text-offwhite text-xs font-sans focus:outline-none focus:border-gold/50"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="glass-card border border-border rounded-sm p-6 w-full max-w-md flex flex-col gap-5"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div>
+                <p className="text-[10px] tracking-[0.25em] uppercase text-gold/50 font-sans mb-0.5">Add Shifts</p>
+                <h2 className="font-serif text-xl text-offwhite">{fmtFull(modalDate)}</h2>
               </div>
-            )}
 
-            {/* Submit row */}
-            <div className="flex items-center gap-3 flex-wrap">
-              {(() => {
-                const count = Object.values(formDays).filter(d => d.enabled).length
-                return (
-                  <button type="submit" disabled={formLoading || !formEmp}
-                    className="px-6 py-2.5 bg-gold text-charcoal text-xs tracking-widest uppercase font-semibold font-sans hover:bg-gold-light transition-colors duration-200 disabled:opacity-50">
-                    {formLoading ? 'Saving…' : count > 0 ? `Add ${count} Shift${count > 1 ? 's' : ''}` : 'Add Shifts'}
-                  </button>
-                )
-              })()}
+              {/* Rows */}
+              <div className="flex flex-col gap-3">
+                {modalRows.map((row, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_80px_80px_20px] gap-2 items-center">
+                    <select
+                      value={row.empId}
+                      onChange={e => setModalRows(prev => prev.map((r, i) => i === idx ? { ...r, empId: e.target.value } : r))}
+                      className={`${inputClass} w-full`}
+                    >
+                      <option value="">Employee…</option>
+                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                    </select>
+                    <input type="time" value={row.start}
+                      onChange={e => setModalRows(prev => prev.map((r, i) => i === idx ? { ...r, start: e.target.value } : r))}
+                      className={`${inputClass} w-full text-xs`}
+                    />
+                    <input type="time" value={row.end}
+                      onChange={e => setModalRows(prev => prev.map((r, i) => i === idx ? { ...r, end: e.target.value } : r))}
+                      className={`${inputClass} w-full text-xs`}
+                    />
+                    {modalRows.length > 1 ? (
+                      <button onClick={() => setModalRows(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-offwhite/20 hover:text-red-400 text-sm transition-colors duration-150">✕</button>
+                    ) : <div />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add another */}
               <button
-                type="button"
-                onClick={() => { setShowForm(false); setFormEmp(''); setFormMsg(null) }}
-                className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
+                onClick={() => setModalRows(prev => [...prev, emptyRow()])}
+                className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200 text-left"
               >
-                Cancel
+                + Add Another Employee
               </button>
-              {formMsg && (
-                <p className={`text-xs font-sans ${formMsg.type === 'ok' ? 'text-gold' : 'text-red-400'}`}>
-                  {formMsg.text}
-                </p>
+
+              {modalError && (
+                <p className="text-xs text-red-400 font-sans">{modalError}</p>
               )}
-            </div>
-          </motion.form>
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 pt-2 border-t border-border/30">
+                <button
+                  onClick={handleModalSave}
+                  disabled={modalLoading}
+                  className="px-6 py-2.5 bg-gold text-charcoal text-xs tracking-widest uppercase font-semibold font-sans hover:bg-gold-light transition-colors duration-200 disabled:opacity-50"
+                >
+                  {modalLoading ? 'Saving…' : 'Save Shifts'}
+                </button>
+                <button onClick={closeModal}
+                  className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200">
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
+
     </div>
   )
 }

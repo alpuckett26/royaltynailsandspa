@@ -331,10 +331,26 @@ export default function AdminPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                   <div className="text-right">
                     <p className="font-serif text-xl text-gold">{formatHours(s.totalMinutes)}</p>
                   </div>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      if (!admin) return
+                      if (!confirm(`Deactivate ${s.name}? They will no longer appear in any staff lists.`)) return
+                      await fetch('/api/employee/deactivate', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ adminId: admin.id, employeeId: s.employeeId }),
+                      })
+                      fetchHours(range)
+                    }}
+                    className="text-[10px] tracking-widest uppercase text-offwhite/20 hover:text-red-400 font-sans transition-colors duration-200 shrink-0"
+                  >
+                    Deactivate
+                  </button>
                   <span className="text-offwhite/20 group-hover:text-offwhite/40 transition-colors duration-200 text-xs">
                     {expanded === s.employeeId ? '▲' : '▼'}
                   </span>
