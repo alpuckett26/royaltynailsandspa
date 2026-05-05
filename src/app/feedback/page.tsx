@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { serviceCategories } from '@/lib/content'
 
 type Employee = { id: string; name: string }
 
@@ -17,6 +18,7 @@ export default function FeedbackPage() {
   const [fEmployee, setFEmployee]   = useState('')
   const [fService, setFService]     = useState('')
   const [fComplaint, setFComplaint] = useState('')
+  const [fPhoto, setFPhoto]         = useState<File | null>(null)
 
   const [loading, setLoading]   = useState(false)
   const [ticket, setTicket]     = useState<string | null>(null)
@@ -34,6 +36,16 @@ export default function FeedbackPage() {
     if (!fName.trim() || !fComplaint.trim()) return
     setLoading(true); setError(null)
     try {
+      let photoUrl: string | undefined
+      if (fPhoto) {
+        const form = new FormData()
+        form.append('file', fPhoto)
+        const upRes = await fetch('/api/complaints/upload', { method: 'POST', body: form })
+        const upData = await upRes.json()
+        if (!upRes.ok) throw new Error(upData.error ?? 'Photo upload failed.')
+        photoUrl = upData.url
+      }
+
       const res = await fetch('/api/complaints', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -42,9 +54,10 @@ export default function FeedbackPage() {
           customerPhone:   fPhone.trim() || undefined,
           appointmentDate: fDate || undefined,
           appointmentTime: fTime || undefined,
-          employeeName:    fEmployee.trim() || undefined,
-          service:         fService.trim() || undefined,
+          employeeName:    fEmployee || undefined,
+          service:         fService || undefined,
           complaint:       fComplaint.trim(),
+          photoUrl,
         }),
       })
       const data = await res.json()
@@ -56,6 +69,7 @@ export default function FeedbackPage() {
   }
 
   const ic = 'w-full bg-white/5 border border-border rounded-sm px-4 py-3 text-offwhite text-sm font-sans placeholder:text-offwhite/20 focus:outline-none focus:border-gold/50 transition-colors duration-200'
+  const sc = 'w-full bg-charcoal border border-border rounded-sm px-4 py-3 text-offwhite text-sm font-sans focus:outline-none focus:border-gold/50 transition-colors duration-200 appearance-none'
   const labelClass = 'text-[10px] tracking-widest uppercase text-offwhite/40 font-sans'
 
   return (
@@ -159,13 +173,12 @@ export default function FeedbackPage() {
                     <div className="flex flex-col gap-1.5">
                       <label className={labelClass}>Service Provider / Employee</label>
                       {employees.length > 0 ? (
-                        <select value={fEmployee} onChange={e => setFEmployee(e.target.value)}
-                          className={`${ic} appearance-none`}>
-                          <option value="">Select or leave blank…</option>
+                        <select value={fEmployee} onChange={e => setFEmployee(e.target.value)} className={sc}>
+                          <option value="" className="bg-charcoal text-offwhite">Select or leave blank…</option>
                           {employees.map(emp => (
-                            <option key={emp.id} value={emp.name}>{emp.name}</option>
+                            <option key={emp.id} value={emp.name} className="bg-charcoal text-offwhite">{emp.name}</option>
                           ))}
-                          <option value="Unknown / Not Sure">Unknown / Not Sure</option>
+                          <option value="Unknown / Not Sure" className="bg-charcoal text-offwhite">Unknown / Not Sure</option>
                         </select>
                       ) : (
                         <input type="text" value={fEmployee} onChange={e => setFEmployee(e.target.value)}
@@ -174,23 +187,44 @@ export default function FeedbackPage() {
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className={labelClass}>Service Received</label>
-                      <input type="text" value={fService} onChange={e => setFService(e.target.value)}
-                        placeholder="e.g. Full Set, Pedicure…" className={ic} />
+                      <select value={fService} onChange={e => setFService(e.target.value)} className={sc}>
+                        <option value="" className="bg-charcoal text-offwhite">Select a service…</option>
+                        {serviceCategories.map(cat => (
+                          <optgroup key={cat.id} label={cat.name}>
+                            {cat.packages.map(pkg => (
+                              <option key={pkg.name} value={pkg.name} className="bg-charcoal text-offwhite">{pkg.name}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                        <option value="Other / Not Listed" className="bg-charcoal text-offwhite">Other / Not Listed</option>
+                      </select>
                     </div>
                   </div>
                 </div>
 
                 <div className="h-px bg-border/30" />
 
-                {/* Complaint */}
+                {/* Complaint + photo */}
                 <div className="flex flex-col gap-1">
                   <p className="text-[9px] tracking-[0.3em] uppercase text-gold/40 font-sans mb-4">Your Concern</p>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={labelClass}>Please describe your concern <span className="text-gold">*</span></label>
-                    <textarea value={fComplaint} onChange={e => setFComplaint(e.target.value)}
-                      placeholder="Please share what happened and how we can make it right…"
-                      rows={5} required
-                      className={`${ic} resize-none`} />
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelClass}>Please describe your concern <span className="text-gold">*</span></label>
+                      <textarea value={fComplaint} onChange={e => setFComplaint(e.target.value)}
+                        placeholder="Please share what happened and how we can make it right…"
+                        rows={5} required
+                        className={`${ic} resize-none`} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelClass}>Photo <span className="text-offwhite/25 normal-case tracking-normal">— optional</span></label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={e => setFPhoto(e.target.files?.[0] ?? null)}
+                        className="text-sm font-sans text-offwhite/50 file:mr-3 file:px-4 file:py-2 file:bg-gold/10 file:border file:border-gold/30 file:text-gold file:text-xs file:tracking-widest file:uppercase file:font-sans file:cursor-pointer hover:file:bg-gold/20 file:transition-colors file:duration-200"
+                      />
+                      {fPhoto && <p className="text-xs font-sans text-offwhite/30">{fPhoto.name}</p>}
+                    </div>
                   </div>
                 </div>
 

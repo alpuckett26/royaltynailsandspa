@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { sendComplaintConfirmation, sendComplaintAlert } from '@/lib/email'
 
 function generateTicket(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -15,15 +16,15 @@ async function verifyAdmin(supabase: ReturnType<typeof getSupabaseAdmin>, adminI
 }
 
 // POST /api/complaints — public, no auth required
-// Body: { customerName, customerEmail?, customerPhone?, appointmentDate?, appointmentTime?, employeeName?, service?, complaint }
+// Body: { customerName, customerEmail?, customerPhone?, appointmentDate?, appointmentTime?, employeeName?, service?, complaint, photoUrl? }
 export async function POST(req: NextRequest) {
   const body = await req.json() as {
     customerName?: string; customerEmail?: string; customerPhone?: string
     appointmentDate?: string; appointmentTime?: string
-    employeeName?: string; service?: string; complaint?: string
+    employeeName?: string; service?: string; complaint?: string; photoUrl?: string
   }
 
-  const { customerName, customerEmail, customerPhone, appointmentDate, appointmentTime, employeeName, service, complaint } = body
+  const { customerName, customerEmail, customerPhone, appointmentDate, appointmentTime, employeeName, service, complaint, photoUrl } = body
 
   if (!customerName?.trim() || !complaint?.trim()) {
     return NextResponse.json({ error: 'Name and complaint are required' }, { status: 400 })
@@ -51,12 +52,18 @@ export async function POST(req: NextRequest) {
     employee_name:    employeeName?.trim() || null,
     service:          service?.trim() || null,
     complaint:        complaint.trim(),
+    photo_url:        photoUrl ?? null,
   }).select('id, ticket_number, created_at').single()
 
   if (error) {
     console.error('[complaints POST]', error)
     return NextResponse.json({ error: 'Failed to submit complaint' }, { status: 500 })
   }
+
+  sendComplaintConfirmation({ ticket, customerName: customerName.trim(), customerEmail, complaint: complaint.trim() })
+    .catch(err => console.error('[complaint confirmation email]', err))
+  sendComplaintAlert({ ticket, customerName: customerName.trim(), customerEmail, customerPhone, appointmentDate, appointmentTime, employeeName, service, complaint: complaint.trim(), photoUrl })
+    .catch(err => console.error('[complaint alert email]', err))
 
   return NextResponse.json({ ticket: data.ticket_number, id: data.id }, { status: 201 })
 }

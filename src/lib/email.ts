@@ -173,6 +173,92 @@ export async function sendDailyReminder(appointments: Array<{
   }).catch(err => console.error('[email daily reminder]', err))
 }
 
+// ── Complaint confirmation to customer ───────────────────────────────────────
+export async function sendComplaintConfirmation(c: {
+  ticket: string
+  customerName: string
+  customerEmail?: string | null
+  complaint: string
+}) {
+  if (!c.customerEmail) return
+  const resend = getResend()
+  if (!resend) return
+
+  await resend.emails.send({
+    from:    FROM_EMAIL,
+    to:      c.customerEmail,
+    subject: `Your concern has been received — Royalty Nails & Spa`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
+        <h2 style="color:#b8972a;margin-bottom:4px">We've Received Your Concern</h2>
+        <p style="color:#666;margin-top:0">Hi ${c.customerName}, thank you for reaching out to us.</p>
+        <hr style="border:none;border-top:1px solid #e5e5e5;margin:16px 0"/>
+        <p style="color:#555;font-size:14px;line-height:1.6">
+          Your concern is important to us and our team will personally review it within <strong>1 business day</strong>.
+          An administrator will follow up with you directly to make things right.
+        </p>
+        <div style="background:#fdf8ef;border:1px solid #e8d9b0;border-radius:6px;padding:20px;margin:20px 0;text-align:center">
+          <p style="color:#888;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin:0 0 8px">Your Ticket Number</p>
+          <p style="color:#b8972a;font-size:32px;font-weight:700;letter-spacing:4px;margin:0">${c.ticket}</p>
+          <p style="color:#aaa;font-size:11px;margin:8px 0 0">Keep this for your records</p>
+        </div>
+        <hr style="border:none;border-top:1px solid #e5e5e5;margin:16px 0"/>
+        <p style="color:#666;font-size:13px">
+          <strong>Royalty Nails &amp; Spa</strong><br/>
+          6909 Rowlett Road, Suite 102, Rowlett, TX 75089<br/>
+          <a href="tel:2145014300" style="color:#b8972a">(214) 501-4300</a>
+        </p>
+      </div>
+    `,
+  }).catch(err => console.error('[email complaint confirmation]', err))
+}
+
+// ── Complaint alert to business ───────────────────────────────────────────────
+export async function sendComplaintAlert(c: {
+  ticket: string
+  customerName: string
+  customerEmail?: string | null
+  customerPhone?: string | null
+  appointmentDate?: string | null
+  appointmentTime?: string | null
+  employeeName?: string | null
+  service?: string | null
+  complaint: string
+  photoUrl?: string | null
+}) {
+  const resend = getResend()
+  if (!resend) return
+
+  const contactLine = [
+    c.customerEmail && `Email: ${c.customerEmail}`,
+    c.customerPhone && `Phone: ${c.customerPhone}`,
+  ].filter(Boolean).join('<br/>')
+
+  await resend.emails.send({
+    from:    FROM_EMAIL,
+    to:      BUSINESS_EMAIL,
+    subject: `New Customer Complaint — Ticket #${c.ticket}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#222">
+        <h2 style="color:#cc3333;margin-bottom:4px">New Customer Complaint</h2>
+        <p style="color:#666;margin-top:0">Ticket: <strong>${c.ticket}</strong></p>
+        <hr style="border:none;border-top:1px solid #e5e5e5;margin:16px 0"/>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <tr><td style="padding:6px 0;color:#888;width:130px;vertical-align:top">Customer</td><td style="padding:6px 0;font-weight:600">${c.customerName}</td></tr>
+          ${contactLine ? `<tr><td style="padding:6px 0;color:#888;vertical-align:top">Contact</td><td style="padding:6px 0">${contactLine}</td></tr>` : ''}
+          ${c.appointmentDate ? `<tr><td style="padding:6px 0;color:#888">Date of Visit</td><td style="padding:6px 0">${c.appointmentDate}${c.appointmentTime ? ' at ' + fmt12h(c.appointmentTime) : ''}</td></tr>` : ''}
+          ${c.employeeName ? `<tr><td style="padding:6px 0;color:#888">Employee</td><td style="padding:6px 0">${c.employeeName}</td></tr>` : ''}
+          ${c.service ? `<tr><td style="padding:6px 0;color:#888">Service</td><td style="padding:6px 0">${c.service}</td></tr>` : ''}
+          <tr><td style="padding:6px 0;color:#888;vertical-align:top">Complaint</td><td style="padding:6px 0;white-space:pre-wrap">${c.complaint}</td></tr>
+          ${c.photoUrl ? `<tr><td style="padding:6px 0;color:#888;vertical-align:top">Photo</td><td style="padding:6px 0"><a href="${c.photoUrl}" style="color:#b8972a">View Photo</a></td></tr>` : ''}
+        </table>
+        <hr style="border:none;border-top:1px solid #e5e5e5;margin:16px 0"/>
+        <p style="color:#aaa;font-size:12px">Royalty Nails &amp; Spa &middot; 6909 Rowlett Road, Suite 102, Rowlett, TX 75089</p>
+      </div>
+    `,
+  }).catch(err => console.error('[email complaint alert]', err))
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 export function buildGoogleCalendarUrl(appt: {
   customerName: string
