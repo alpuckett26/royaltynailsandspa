@@ -58,7 +58,7 @@ export default function EmployeeLoginPage() {
 
       // Route based on role
       if (data.employee.role === 'admin') {
-        router.push('/employee/admin')
+        router.push('/admin/complaints')
       } else {
         router.push('/employee/dashboard')
       }

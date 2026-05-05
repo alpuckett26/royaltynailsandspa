@@ -167,9 +167,9 @@ export default function SchedulePage() {
           <h1 className="font-serif text-3xl text-offwhite">Schedule</h1>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <button onClick={() => router.push('/employee/admin')}
+          <button onClick={() => router.push('/admin/complaints')}
             className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200">
-            ← Hours Overview
+            ← Admin Panel
           </button>
           <button onClick={() => { sessionStorage.removeItem('rns_employee'); router.push('/employee') }}
             className="text-xs tracking-widest uppercase text-offwhite/20 hover:text-offwhite/40 font-sans transition-colors duration-200">

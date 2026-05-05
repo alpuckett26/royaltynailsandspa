@@ -138,10 +138,10 @@ export default function DashboardPage() {
           </button>
           {employee.role === 'admin' && (
             <button
-              onClick={() => router.push('/employee/admin')}
+              onClick={() => router.push('/admin/complaints')}
               className="text-xs tracking-widest uppercase text-gold/40 hover:text-gold font-sans transition-colors duration-200"
             >
-              Admin View →
+              Admin Panel →
             </button>
           )}
         </div>
