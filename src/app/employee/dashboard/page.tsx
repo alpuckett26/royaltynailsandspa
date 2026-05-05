@@ -119,7 +119,7 @@ export default function DashboardPage() {
         </button>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.push('/employee/checkin')}
+            onClick={() => router.push('/checkin')}
             className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200"
           >
             Check-In Queue →

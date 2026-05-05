@@ -184,7 +184,7 @@ export default function AppointmentsPage() {
             className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200">
             ← Dashboard
           </button>
-          <button onClick={() => router.push('/employee/checkin')}
+          <button onClick={() => router.push('/checkin')}
             className="text-xs tracking-widest uppercase text-offwhite/30 hover:text-offwhite/60 font-sans transition-colors duration-200">
             Check-In Queue →
           </button>
