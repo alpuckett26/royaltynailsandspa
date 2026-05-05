@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { PINPad } from '@/components/employee/PINPad'
 
 type Admin = { id: string; name: string; role: string }
 
@@ -64,12 +65,15 @@ function fmt12h(t: string | null) {
   return `${h % 12 || 12}:${m.toString().padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
 }
 
-function QueueTab({ admin }: { admin: Admin }) {
+function QueueTab() {
   const [queue, setQueue] = useState<CheckInEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [servingId, setServingId] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const [pinPromptFor, setPinPromptFor] = useState<CheckInEntry | null>(null)
+  const [pinLoading, setPinLoading] = useState(false)
+  const [pinError, setPinError] = useState<string | null>(null)
 
   const fetchQueue = useCallback(async () => {
     try {
@@ -92,17 +96,29 @@ function QueueTab({ admin }: { admin: Admin }) {
 
   void tick
 
-  async function handleServed(id: string) {
-    if (servingId) return
-    setServingId(id)
+  function openPinPrompt(entry: CheckInEntry) { setPinError(null); setPinPromptFor(entry) }
+  function closePinPrompt() { setPinPromptFor(null); setPinError(null) }
+
+  async function handlePIN(pin: string) {
+    if (!pinPromptFor) return
+    setPinLoading(true); setPinError(null)
     try {
+      const lookupRes = await fetch('/api/employee/pin-lookup', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      })
+      const lookupData = await lookupRes.json()
+      if (!lookupRes.ok) { setPinError(lookupData.error ?? 'PIN not recognized'); return }
+
       await fetch('/api/checkin', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, employeeId: admin.id }),
+        body: JSON.stringify({ id: pinPromptFor.id, employeeId: lookupData.employee.id }),
       })
-      setQueue(q => q.filter(e => e.id !== id))
-    } catch { /* silent */ }
-    finally { setServingId(null) }
+      setQueue(q => q.filter(e => e.id !== pinPromptFor.id))
+      closePinPrompt()
+    } catch {
+      setPinError('Connection error. Please try again.')
+    } finally { setPinLoading(false) }
   }
 
   if (loading) return (
@@ -112,56 +128,76 @@ function QueueTab({ admin }: { admin: Admin }) {
   )
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-sans tracking-widest uppercase ${
-          queue.length > 0 ? 'border-gold/40 text-gold bg-gold/5' : 'border-border text-offwhite/30'
-        }`}>
-          {queue.length === 0 ? 'No one waiting' : `${queue.length} waiting`}
-        </span>
-        <span className="text-[10px] text-offwhite/20 font-sans">Auto-refreshes every 30s</span>
-        <button onClick={fetchQueue} className="text-[10px] tracking-widest uppercase text-offwhite/25 hover:text-offwhite/50 font-sans transition-colors duration-200 ml-auto">
-          Refresh
-        </button>
-      </div>
+    <>
+      <AnimatePresence>
+        {pinPromptFor && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-charcoal/90 backdrop-blur-sm flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
+              className="glass-card border border-border rounded-sm p-8 w-full max-w-xs">
+              <div className="mb-6 text-center">
+                <p className="text-[10px] tracking-[0.25em] uppercase text-offwhite/30 font-sans mb-1">Serving</p>
+                <p className="font-serif text-xl text-offwhite">{pinPromptFor.customer_name}</p>
+                <p className="text-xs text-gold/60 font-sans mt-1">{pinPromptFor.service}</p>
+              </div>
+              <PINPad label="Enter your PIN" onComplete={handlePIN} loading={pinLoading} error={pinError} onCancel={closePinPrompt} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {queue.length === 0 ? (
-        <div className="glass-card border border-border rounded-sm p-14 text-center">
-          <p className="font-serif text-2xl text-offwhite/20 mb-2">All clear</p>
-          <p className="text-offwhite/25 text-sm font-sans">No one waiting right now.</p>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-sans tracking-widest uppercase ${
+            queue.length > 0 ? 'border-gold/40 text-gold bg-gold/5' : 'border-border text-offwhite/30'
+          }`}>
+            {queue.length === 0 ? 'No one waiting' : `${queue.length} waiting`}
+          </span>
+          <span className="text-[10px] text-offwhite/20 font-sans">Auto-refreshes every 30s</span>
+          <button onClick={fetchQueue} className="text-[10px] tracking-widest uppercase text-offwhite/25 hover:text-offwhite/50 font-sans transition-colors duration-200 ml-auto">
+            Refresh
+          </button>
         </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <AnimatePresence>
-            {queue.map((entry, idx) => (
-              <motion.div key={entry.id} layout
-                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
-                transition={{ duration: 0.25, delay: idx * 0.04 }}
-                className="glass-card border border-border rounded-sm px-6 py-5 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="shrink-0 w-8 h-8 rounded-full border border-border/60 flex items-center justify-center">
-                    <span className="font-serif text-sm text-offwhite/40">{idx + 1}</span>
+
+        {queue.length === 0 ? (
+          <div className="glass-card border border-border rounded-sm p-14 text-center">
+            <p className="font-serif text-2xl text-offwhite/20 mb-2">All clear</p>
+            <p className="text-offwhite/25 text-sm font-sans">No one waiting right now.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <AnimatePresence>
+              {queue.map((entry, idx) => (
+                <motion.div key={entry.id} layout
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
+                  transition={{ duration: 0.25, delay: idx * 0.04 }}
+                  className="glass-card border border-border rounded-sm px-6 py-5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="shrink-0 w-8 h-8 rounded-full border border-border/60 flex items-center justify-center">
+                      <span className="font-serif text-sm text-offwhite/40">{idx + 1}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-serif text-lg text-offwhite truncate">{entry.customer_name}</p>
+                      <p className="text-xs font-sans text-gold/70 truncate">{entry.service}</p>
+                      {entry.notes && <p className="text-[11px] font-sans text-offwhite/30 truncate mt-0.5">{entry.notes}</p>}
+                      <p className="text-[10px] font-sans text-offwhite/25 mt-1 tracking-wide">
+                        Checked in {timeAgo(entry.created_at)} · waiting {waitTime(entry.created_at, null)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-serif text-lg text-offwhite truncate">{entry.customer_name}</p>
-                    <p className="text-xs font-sans text-gold/70 truncate">{entry.service}</p>
-                    {entry.notes && <p className="text-[11px] font-sans text-offwhite/30 truncate mt-0.5">{entry.notes}</p>}
-                    <p className="text-[10px] font-sans text-offwhite/25 mt-1 tracking-wide">
-                      Checked in {timeAgo(entry.created_at)} · waiting {waitTime(entry.created_at, null)}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => handleServed(entry.id)} disabled={servingId === entry.id}
-                  className="shrink-0 min-h-[44px] px-5 py-2 border border-gold/40 text-gold text-xs tracking-widest uppercase font-sans hover:bg-gold/10 active:scale-95 transition-all duration-150 rounded-sm disabled:opacity-40 disabled:cursor-not-allowed">
-                  {servingId === entry.id ? '…' : 'Served ✓'}
-                </button>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
-    </div>
+                  <button onClick={() => openPinPrompt(entry)} disabled={!!pinPromptFor}
+                    className="shrink-0 min-h-[44px] px-5 py-2 border border-gold/40 text-gold text-xs tracking-widest uppercase font-sans hover:bg-gold/10 active:scale-95 transition-all duration-150 rounded-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                    Serve ✓
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 
@@ -348,7 +384,7 @@ export default function AdminQueuePage() {
       <AnimatePresence mode="wait">
         <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}>
-          {tab === 'queue' ? <QueueTab admin={admin} /> : <HistoryTab />}
+          {tab === 'queue' ? <QueueTab /> : <HistoryTab />}
         </motion.div>
       </AnimatePresence>
     </div>
