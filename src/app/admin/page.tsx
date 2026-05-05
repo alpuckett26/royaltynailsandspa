@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -10,6 +10,15 @@ export default function AdminLoginPage() {
   const router = useRouter()
   const [pinError, setPinError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Skip login if already authenticated
+  useEffect(() => {
+    const stored = sessionStorage.getItem('rns_employee')
+    if (stored) {
+      const emp = JSON.parse(stored)
+      if (emp.role === 'admin') router.replace('/admin/dashboard')
+    }
+  }, [router])
 
   const handlePIN = async (pin: string) => {
     setLoading(true)

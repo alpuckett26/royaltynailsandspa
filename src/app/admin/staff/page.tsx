@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { HoursTable } from '@/components/employee/HoursTable'
 
@@ -13,11 +14,36 @@ type Summary = {
   totalMinutes: number
   entries: Entry[]
 }
-type Range = 'week' | 'month' | 'all'
+type View = 'week' | 'month' | 'year'
 
 function formatHours(minutes: number) {
   const h = Math.floor(minutes / 60); const m = minutes % 60
   return `${h}h ${m}m`
+}
+
+function getWeekBounds(offset = 0): { from: string; to: string; label: string } {
+  const now = new Date()
+  const sun = new Date(now)
+  sun.setDate(now.getDate() - now.getDay() + offset * 7)
+  sun.setHours(0, 0, 0, 0)
+  const sat = new Date(sun); sat.setDate(sun.getDate() + 6); sat.setHours(23, 59, 59, 999)
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const year = sat.getFullYear()
+  const label = `${fmt(sun)} – ${fmt(sat)}, ${year}`
+  return { from: sun.toISOString(), to: sat.toISOString(), label }
+}
+
+function getViewRange(view: View, weekOffset: number): { from: string; to: string } {
+  if (view === 'week') {
+    const { from, to } = getWeekBounds(weekOffset)
+    return { from, to }
+  }
+  const now = new Date()
+  if (view === 'month') {
+    return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to: now.toISOString() }
+  }
+  const from = new Date(now); from.setFullYear(from.getFullYear() - 1)
+  return { from: from.toISOString(), to: now.toISOString() }
 }
 
 function getWeeklyBreakdown(entries: Entry[]): Array<{ label: string; minutes: number }> {
@@ -36,26 +62,13 @@ function getWeeklyBreakdown(entries: Entry[]): Array<{ label: string; minutes: n
     .sort((a, b) => a.label.localeCompare(b.label))
 }
 
-function getRangeDates(range: Range): { from: string; to: string } {
-  const now = new Date()
-  if (range === 'week') {
-    const day = now.getDay()
-    const from = new Date(now); from.setDate(now.getDate() - day); from.setHours(0, 0, 0, 0)
-    const to = new Date(from); to.setDate(from.getDate() + 6); to.setHours(23, 59, 59, 999)
-    return { from: from.toISOString(), to: to.toISOString() }
-  }
-  if (range === 'month') {
-    return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to: now.toISOString() }
-  }
-  const from = new Date(now); from.setFullYear(from.getFullYear() - 1)
-  return { from: from.toISOString(), to: now.toISOString() }
-}
-
 export default function AdminStaffPage() {
+  const router = useRouter()
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [summaries, setSummaries] = useState<Summary[]>([])
   const [loading, setLoading] = useState(true)
-  const [range, setRange] = useState<Range>('week')
+  const [view, setView] = useState<View>('week')
+  const [weekOffset, setWeekOffset] = useState(0)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [deactivating, setDeactivating] = useState<string | null>(null)
   const [clockingOut, setClockingOut] = useState<string | null>(null)
@@ -73,10 +86,10 @@ export default function AdminStaffPage() {
     if (stored) setAdmin(JSON.parse(stored))
   }, [])
 
-  const fetchHours = useCallback(async (r: Range) => {
+  const fetchHours = useCallback(async (v: View, offset: number) => {
     setLoading(true)
     try {
-      const { from, to } = getRangeDates(r)
+      const { from, to } = getViewRange(v, offset)
       const res = await fetch(`/api/employee/hours?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
       const data = await res.json()
       setSummaries(data.summaries ?? [])
@@ -84,7 +97,7 @@ export default function AdminStaffPage() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { if (admin) fetchHours(range) }, [admin, range, fetchHours])
+  useEffect(() => { if (admin) fetchHours(view, weekOffset) }, [admin, view, weekOffset, fetchHours])
 
   const handleDeactivate = async (employeeId: string) => {
     if (!admin || deactivating) return
@@ -112,7 +125,7 @@ export default function AdminStaffPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeId }),
       })
-      fetchHours(range)
+      fetchHours(view, weekOffset)
     } catch { /* silent */ }
     finally { setClockingOut(null) }
   }
@@ -134,13 +147,14 @@ export default function AdminStaffPage() {
       if (!res.ok) throw new Error(data.error)
       setFormMsg({ type: 'ok', text: `${data.employee.name} added successfully.` })
       setNewName(''); setNewPin(''); setNewRole('staff')
-      fetchHours(range)
+      fetchHours(view, weekOffset)
     } catch (err: unknown) {
       setFormMsg({ type: 'err', text: err instanceof Error ? err.message : 'Failed to create employee.' })
     } finally { setFormLoading(false) }
   }
 
   const ic = 'w-full bg-charcoal border border-border rounded-sm px-4 py-3 text-offwhite text-sm font-sans placeholder:text-offwhite/25 focus:outline-none focus:border-gold/50 transition-colors duration-200'
+  const weekBounds = getWeekBounds(weekOffset)
 
   return (
     <div className="flex flex-col gap-8">
@@ -150,15 +164,52 @@ export default function AdminStaffPage() {
       </div>
 
       {/* Range selector */}
-      <div className="flex gap-2">
-        {(['week', 'month', 'all'] as Range[]).map(r => (
-          <button key={r} onClick={() => setRange(r)}
-            className={`px-4 py-2 text-xs tracking-widest uppercase font-sans border transition-all duration-200 rounded-sm ${
-              range === r ? 'border-gold/50 text-gold bg-gold/5' : 'border-border text-offwhite/40 hover:text-offwhite hover:border-border/80'
-            }`}>
-            {r === 'week' ? 'This Week' : r === 'month' ? 'This Month' : 'Past Year'}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Week navigator */}
+        <div className={`flex items-center gap-1 border rounded-sm transition-all duration-200 ${
+          view === 'week' ? 'border-gold/40 bg-gold/5' : 'border-border'
+        }`}>
+          <button
+            onClick={() => { setView('week'); setWeekOffset(o => o - 1) }}
+            className="px-3 py-2 text-offwhite/40 hover:text-offwhite transition-colors duration-150 text-sm"
+          >
+            ←
           </button>
-        ))}
+          <button
+            onClick={() => setView('week')}
+            className={`px-3 py-2 text-xs font-sans tracking-wide whitespace-nowrap transition-colors duration-150 ${
+              view === 'week' ? 'text-gold' : 'text-offwhite/50 hover:text-offwhite'
+            }`}
+          >
+            {weekBounds.label}
+          </button>
+          <button
+            onClick={() => { setView('week'); setWeekOffset(o => o + 1) }}
+            className="px-3 py-2 text-offwhite/40 hover:text-offwhite transition-colors duration-150 text-sm"
+          >
+            →
+          </button>
+        </div>
+
+        {weekOffset !== 0 && view === 'week' && (
+          <button
+            onClick={() => setWeekOffset(0)}
+            className="text-[10px] tracking-widest uppercase text-gold/50 hover:text-gold font-sans transition-colors duration-200"
+          >
+            Current Week
+          </button>
+        )}
+
+        <div className="flex gap-2 ml-auto">
+          {(['month', 'year'] as View[]).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-4 py-2 text-xs tracking-widest uppercase font-sans border rounded-sm transition-all duration-200 ${
+                view === v ? 'border-gold/50 text-gold bg-gold/5' : 'border-border text-offwhite/40 hover:text-offwhite hover:border-border/80'
+              }`}>
+              {v === 'month' ? 'This Month' : 'Past Year'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
@@ -215,7 +266,7 @@ export default function AdminStaffPage() {
               {expanded === s.employeeId && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }} className="mt-2 flex flex-col gap-2">
-                  {range !== 'week' && (() => {
+                  {view !== 'week' && (() => {
                     const weeks = getWeeklyBreakdown(s.entries)
                     if (weeks.length <= 1) return null
                     return (
@@ -233,6 +284,12 @@ export default function AdminStaffPage() {
                     )
                   })()}
                   <HoursTable entries={s.entries} totalMinutes={s.totalMinutes} title={`${s.name}'s Entries`} />
+                  <button
+                    onClick={() => router.push(`/admin/staff/${s.employeeId}`)}
+                    className="self-start text-[10px] tracking-widest uppercase text-gold/40 hover:text-gold font-sans transition-colors duration-200 mt-1"
+                  >
+                    Full History →
+                  </button>
                 </motion.div>
               )}
             </motion.div>

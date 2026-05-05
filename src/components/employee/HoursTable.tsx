@@ -30,6 +30,15 @@ function formatTime(iso: string) {
   })
 }
 
+function formatClockOut(clockIn: string, clockOut: string): string {
+  const inDay = new Date(clockIn).toDateString()
+  const outDay = new Date(clockOut).toDateString()
+  if (inDay !== outDay) {
+    return `${formatDate(clockOut)}, ${formatTime(clockOut)}`
+  }
+  return formatTime(clockOut)
+}
+
 function calcDuration(clockIn: string, clockOut: string | null): string {
   if (!clockOut) return '—'
   const ms = new Date(clockOut).getTime() - new Date(clockIn).getTime()
@@ -99,7 +108,7 @@ export function HoursTable({ entries, totalMinutes, title = 'Time Log' }: HoursT
                 </td>
                 <td className="px-6 py-3.5 text-sm font-sans tabular-nums">
                   {entry.clock_out ? (
-                    <span className="text-offwhite/70">{formatTime(entry.clock_out)}</span>
+                    <span className="text-offwhite/70">{formatClockOut(entry.clock_in, entry.clock_out)}</span>
                   ) : (
                     <span className="text-gold/60 text-xs tracking-widest uppercase">Active</span>
                   )}
