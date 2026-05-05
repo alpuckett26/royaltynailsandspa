@@ -13,6 +13,7 @@ const NAV = [
   { label: 'Queue',        href: '/admin/queue',         icon: '◇' },
   { label: 'Schedule',     href: '/admin/schedule',      icon: '▤' },
   { label: 'Specials',     href: '/admin/specials',      icon: '◆' },
+  { label: 'Complaints',   href: '/admin/complaints',    icon: '◌' },
   { label: 'Settings',     href: '/admin/settings',      icon: '◈' },
 ]
 

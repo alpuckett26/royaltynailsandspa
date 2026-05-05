@@ -159,6 +159,35 @@ alter table business_settings enable row level security;
 create policy "Public can read business settings"
   on business_settings for select using (true);
 
+-- ── COMPLAINTS ───────────────────────────────────────────────────────────────
+
+create table if not exists complaints (
+  id               uuid primary key default uuid_generate_v4(),
+  ticket_number    text not null unique,
+  customer_name    text not null,
+  customer_email   text,
+  customer_phone   text,
+  appointment_date date,
+  appointment_time text,
+  employee_name    text,
+  service          text,
+  complaint        text not null,
+  status           text not null default 'open'
+                     check (status in ('open', 'in_progress', 'resolved')),
+  admin_notes      text,
+  follow_up_due    date,
+  resolved_at      timestamptz,
+  created_at       timestamptz not null default now()
+);
+
+create index if not exists complaints_status_idx     on complaints(status);
+create index if not exists complaints_created_at_idx on complaints(created_at);
+
+alter table complaints enable row level security;
+-- Anyone can submit a complaint (insert only — no public read)
+create policy "Public can submit complaints"
+  on complaints for insert with check (true);
+
 -- ── INITIAL SETUP ─────────────────────────────────────────────────────────────
 -- To add your first employees, use the /employee/admin page after deploying,
 -- or run the following SQL with your real bcrypt-hashed PINs.
