@@ -76,6 +76,13 @@ export default function FeedbackPage() {
     <div className="min-h-screen bg-charcoal pt-32 pb-24">
       <div className="max-w-2xl mx-auto px-6 lg:px-8">
 
+        <div className="flex justify-end mb-6">
+          <a href="/admin/complaints"
+            className="text-[10px] tracking-widest uppercase text-offwhite/20 hover:text-offwhite/50 font-sans transition-colors duration-200">
+            ← Admin Panel
+          </a>
+        </div>
+
         <AnimatePresence mode="wait">
           {ticket ? (
             /* ── Success State ── */
