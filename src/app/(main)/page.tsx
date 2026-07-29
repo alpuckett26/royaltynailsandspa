@@ -11,7 +11,12 @@ import { FAQ } from '@/components/home/FAQ'
 import { CTABand } from '@/components/home/CTABand'
 
 export const metadata: Metadata = {
-  title: 'Royalty Nails & Spa | Luxury Nail Salon in Rowlett, TX',
+  // The root layout applies `template: '%s | Royalty Nails & Spa'`, so this must
+  // NOT repeat the brand — including it rendered "Royalty Nails & Spa | Luxury
+  // Nail Salon in Rowlett, TX | Royalty Nails & Spa" (76 chars), which Google
+  // truncates and which spends the most valuable part of the tag saying the same
+  // thing twice. Leading with the keywords keeps it at 54.
+  title: 'Luxury Nail Salon in Rowlett, TX',
   description:
     "Rowlett's premier luxury nail salon. Signature manicures, pedicures, waxing, and advanced facials — crafted for those who demand the finest. Walk-ins welcome.",
 }
